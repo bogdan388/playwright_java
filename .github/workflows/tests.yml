@@ -22,31 +22,20 @@ jobs:
     - name: Compile code
       run: mvn clean compile test-compile
 
-    - name: Cache compiled classes
+    - name: Install Playwright browsers
+      run: mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="install --with-deps"
+
+    - name: Cache build and browsers
       uses: actions/cache@v3
       with:
         path: |
-          target/classes
-          target/test-classes
-        key: compiled-${{ github.sha }}
+          target/
+          ~/.cache/ms-playwright
+        key: build-${{ github.sha }}
 
   test:
     needs: build
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        test-group:
-          - Base64EncoderTest
-          - DiffCheckerTest
-          - HashGeneratorTest
-          - JsonFormatterTest
-          - JwtDecoderTest
-          - PdfToolsTest
-          - RegexTesterTest
-          - TextCaseConverterTest
-          - UrlEncoderTest
-          - UuidGeneratorTest
 
     steps:
     - uses: actions/checkout@v4
@@ -58,24 +47,21 @@ jobs:
         distribution: 'temurin'
         cache: maven
 
-    - name: Restore compiled classes
+    - name: Restore build and browsers
       uses: actions/cache@v3
       with:
         path: |
-          target/classes
-          target/test-classes
-        key: compiled-${{ github.sha }}
+          target/
+          ~/.cache/ms-playwright
+        key: build-${{ github.sha }}
 
-    - name: Install Playwright browsers
-      run: mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="install --with-deps"
-
-    - name: Run ${{ matrix.test-group }}
-      run: mvn test -Dtest=${{ matrix.test-group }}
+    - name: Run tests in parallel
+      run: mvn test -Dparallel=classes -DthreadCount=4
 
     - name: Upload test results
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-results-${{ matrix.test-group }}
+        name: test-results
         path: target/surefire-reports/
         retention-days: 7
