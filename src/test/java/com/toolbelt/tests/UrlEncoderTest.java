@@ -1,6 +1,7 @@
 package com.toolbelt.tests;
 
 import com.microsoft.playwright.*;
+import com.toolbelt.pages.UrlEncoderPage;
 import org.junit.jupiter.api.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -10,6 +11,7 @@ public class UrlEncoderTest {
     private static Browser browser;
     private BrowserContext context;
     private Page page;
+    private UrlEncoderPage urlPage;
 
     @BeforeAll
     static void launchBrowser() {
@@ -32,6 +34,7 @@ public class UrlEncoderTest {
         context = browser.newContext(new Browser.NewContextOptions().setBaseURL("https://toolbelt.site"));
         page = context.newPage();
         page.navigate("/url-encoder");
+        urlPage = new UrlEncoderPage(page);
     }
 
     @AfterEach
@@ -43,17 +46,17 @@ public class UrlEncoderTest {
 
     @Test
     void shouldLoadTheUrlEncoderPageCorrectly() {
-        assertTrue(page.locator("h1").textContent().contains("URL Encoder"));
-        assertTrue(page.locator("text=/Encode and decode URLs/i").isVisible());
-        assertTrue(page.locator("textarea").first().isVisible());
-        assertTrue(page.locator("textarea").nth(1).isVisible());
-        assertTrue(page.locator("button:has-text('Encode')").first().isVisible());
-        assertTrue(page.locator("button:has-text('Decode')").first().isVisible());
+        assertTrue(urlPage.getTitleText().contains("URL Encoder"));
+        assertTrue(urlPage.isDescriptionVisible());
+        assertTrue(urlPage.isInputTextareaVisible());
+        assertTrue(urlPage.isOutputTextareaVisible());
+        assertTrue(urlPage.isEncodeButtonVisible());
+        assertTrue(urlPage.isDecodeButtonVisible());
     }
 
     @Test
     void shouldNavigateBackToHomepage() {
-        page.click("a[href='/']");
+        urlPage.navigateToHome();
         assertTrue(page.url().endsWith("/"));
     }
 
@@ -62,56 +65,55 @@ public class UrlEncoderTest {
         @Test
         void shouldEncodeUrlWithSpaces() {
             String input = "Hello World";
-            page.locator("textarea").first().fill(input);
+            urlPage.fillInput(input);
 
             // Auto-converts, wait for processing
-            page.waitForTimeout(300);
+            urlPage.waitForConversion();
 
-            String output = page.locator("textarea").nth(1).inputValue();
+            String output = urlPage.getOutput();
             assertTrue(output.contains("Hello%20World"));
         }
 
         @Test
         void shouldEncodeSpecialCharacters() {
             // Switch to Component mode to encode special characters
-            Locator componentButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Component$"));
-            componentButton.click();
+            urlPage.clickComponent();
 
             String input = "test@example.com?query=value";
-            page.locator("textarea").first().fill(input);
+            urlPage.fillInput(input);
 
             // Wait for auto-processing
-            page.waitForTimeout(500);
+            urlPage.waitForConversion();
 
-            String output = page.locator("textarea").nth(1).inputValue();
+            String output = urlPage.getOutput();
             assertTrue(output.contains("%"));
         }
 
         @Test
         void shouldDecodeUrlEncodedString() {
-            page.locator("button:has-text('Decode')").first().click();
+            urlPage.clickDecode();
 
             String input = "Hello%20World";
-            page.locator("textarea").first().fill(input);
+            urlPage.fillInput(input);
 
             // Auto-converts, wait for processing
-            page.waitForTimeout(300);
+            urlPage.waitForConversion();
 
-            String output = page.locator("textarea").nth(1).inputValue();
+            String output = urlPage.getOutput();
             assertEquals("Hello World", output);
         }
 
         @Test
         void shouldDecodeSpecialCharacters() {
-            page.locator("button:has-text('Decode')").first().click();
+            urlPage.clickDecode();
 
             String input = "test%40example.com%3Fquery%3Dvalue";
-            page.locator("textarea").first().fill(input);
+            urlPage.fillInput(input);
 
             // Auto-converts, wait for processing
-            page.waitForTimeout(300);
+            urlPage.waitForConversion();
 
-            String output = page.locator("textarea").nth(1).inputValue();
+            String output = urlPage.getOutput();
             assertTrue(output.contains("@"));
             assertTrue(output.contains("?"));
             assertTrue(output.contains("="));
@@ -122,51 +124,45 @@ public class UrlEncoderTest {
     class EncodingTypes {
         @Test
         void shouldUseFullUrlEncoding() {
-            Locator fullUrlButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Full URL$"));
-            int count = fullUrlButton.count();
-            if (count > 0) {
-                fullUrlButton.first().click();
+            if (urlPage.isFullUrlButtonVisible()) {
+                urlPage.clickFullUrl();
 
-                page.locator("textarea").first().fill("https://example.com/path with spaces");
+                urlPage.fillInput("https://example.com/path with spaces");
 
                 // Auto-converts, wait for processing
-                page.waitForTimeout(300);
+                urlPage.waitForConversion();
 
-                String output = page.locator("textarea").nth(1).inputValue();
+                String output = urlPage.getOutput();
                 assertTrue(output.contains("https://"));
             }
         }
 
         @Test
         void shouldUseComponentEncoding() {
-            Locator componentButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Component$"));
-            int count = componentButton.count();
-            if (count > 0) {
-                componentButton.first().click();
+            if (urlPage.isComponentButtonVisible()) {
+                urlPage.clickComponent();
 
-                page.locator("textarea").first().fill("hello world");
+                urlPage.fillInput("hello world");
 
                 // Auto-converts, wait for processing
-                page.waitForTimeout(300);
+                urlPage.waitForConversion();
 
-                String output = page.locator("textarea").nth(1).inputValue();
+                String output = urlPage.getOutput();
                 assertEquals("hello%20world", output);
             }
         }
 
         @Test
         void shouldUseFormDataEncoding() {
-            Locator formButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Form Data$"));
-            int count = formButton.count();
-            if (count > 0) {
-                formButton.first().click();
+            if (urlPage.isFormDataButtonVisible()) {
+                urlPage.clickFormData();
 
-                page.locator("textarea").first().fill("hello world");
+                urlPage.fillInput("hello world");
 
                 // Auto-converts, wait for processing
-                page.waitForTimeout(300);
+                urlPage.waitForConversion();
 
-                String output = page.locator("textarea").nth(1).inputValue();
+                String output = urlPage.getOutput();
                 // Form encoding uses + for spaces
                 assertTrue(output.contains("+"));
             }
@@ -177,48 +173,34 @@ public class UrlEncoderTest {
     class UIControls {
         @Test
         void shouldSwapInputAndOutput() {
-            page.locator("textarea").first().fill("Hello World");
+            urlPage.fillInput("Hello World");
 
             // Auto-converts, wait for processing
-            page.waitForTimeout(300);
+            urlPage.waitForConversion();
 
-            String output = page.locator("textarea").nth(1).inputValue();
+            String output = urlPage.getOutput();
 
-            Locator swapButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Swap$"));
-            int count = swapButton.count();
-            if (count > 0) {
-                swapButton.first().click();
+            urlPage.clickSwap();
 
-                String newInput = page.locator("textarea").first().inputValue();
-                assertEquals(output, newInput);
-            }
+            String newInput = urlPage.getInput();
+            assertEquals(output, newInput);
         }
 
         @Test
         void shouldCopyToClipboard() {
             context.grantPermissions(java.util.Arrays.asList("clipboard-read", "clipboard-write"));
 
-            page.locator("textarea").first().fill("test");
+            urlPage.fillInput("test");
 
-            Locator copyButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Copy$"));
-            int count = copyButton.count();
-            if (count > 0) {
-                copyButton.first().click();
-                assertTrue(page.locator(".text-green-400").or(page.locator("text=/copied/i"))
-                    .isVisible(new Locator.IsVisibleOptions().setTimeout(2000)));
-            }
+            urlPage.clickCopy();
+            assertTrue(urlPage.isSuccessIndicatorVisible());
         }
 
         @Test
         void shouldLoadSampleUrl() {
-            Locator sampleButtons = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)url|text|params|path|international"));
-            int count = sampleButtons.count();
-
-            if (count > 0) {
-                sampleButtons.first().click();
-                String input = page.locator("textarea").first().inputValue();
-                assertTrue(input.length() > 0);
-            }
+            urlPage.clickAnySample();
+            String input = urlPage.getInput();
+            assertTrue(input.length() > 0);
         }
     }
 
@@ -228,20 +210,20 @@ public class UrlEncoderTest {
         void shouldEncodeAndDecodeBackToOriginal() {
             String original = "Hello World & Test=123";
 
-            page.locator("textarea").first().fill(original);
+            urlPage.fillInput(original);
 
             // Auto-converts, wait for processing
-            page.waitForTimeout(300);
+            urlPage.waitForConversion();
 
-            String encoded = page.locator("textarea").nth(1).inputValue();
+            String encoded = urlPage.getOutput();
 
-            page.locator("button:has-text('Decode')").first().click();
-            page.locator("textarea").first().fill(encoded);
+            urlPage.clickDecode();
+            urlPage.fillInput(encoded);
 
             // Auto-converts, wait for processing
-            page.waitForTimeout(300);
+            urlPage.waitForConversion();
 
-            String decoded = page.locator("textarea").nth(1).inputValue();
+            String decoded = urlPage.getOutput();
 
             assertEquals(original, decoded);
         }
@@ -253,13 +235,10 @@ public class UrlEncoderTest {
         void shouldParseUrlComponents() {
             String url = "https://example.com:8080/path?query=value#hash";
 
-            page.locator("textarea").first().fill(url);
+            urlPage.fillInput(url);
 
-            Locator componentsSection = page.locator("text=/URL Components/i");
-            int count = componentsSection.count();
-            if (count > 0) {
-                assertTrue(page.locator("text=/Protocol/i").isVisible());
-                assertTrue(page.locator("text=/Host/i").isVisible());
+            if (urlPage.isUrlComponentsSectionVisible()) {
+                assertTrue(urlPage.isUrlComponentsSectionVisible());
             }
         }
     }
@@ -268,11 +247,8 @@ public class UrlEncoderTest {
     class CharacterReference {
         @Test
         void shouldDisplayCharacterReferenceTable() {
-            Locator referenceSection = page.locator("text=/Common Encodings|Character Reference/i");
-            int count = referenceSection.count();
-            if (count > 0) {
-                assertTrue(referenceSection.first().isVisible());
-                assertTrue(page.locator("text=/%20/i").first().isVisible());
+            if (urlPage.isCharacterReferenceSectionVisible()) {
+                assertTrue(urlPage.isCharacterReferenceSectionVisible());
             }
         }
     }
@@ -281,17 +257,17 @@ public class UrlEncoderTest {
     class ErrorHandling {
         @Test
         void shouldHandleEmptyInput() {
-            String output = page.locator("textarea").nth(1).inputValue();
+            String output = urlPage.getOutput();
             assertEquals("", output);
         }
 
         @Test
         void shouldHandleInvalidUrlEncodingGracefully() {
-            page.locator("button:has-text('Decode')").first().click();
+            urlPage.clickDecode();
 
-            page.locator("textarea").first().fill("%ZZ%XX");
+            urlPage.fillInput("%ZZ%XX");
 
-            String output = page.locator("textarea").nth(1).inputValue();
+            String output = urlPage.getOutput();
             // Should handle error gracefully
             assertTrue(output.length() >= 0);
         }
@@ -303,15 +279,15 @@ public class UrlEncoderTest {
         void shouldBeResponsiveOnMobile() {
             page.setViewportSize(375, 667);
 
-            assertTrue(page.locator("h1").isVisible());
-            assertTrue(page.locator("textarea").first().isVisible());
+            assertTrue(urlPage.isTitleVisible());
+            assertTrue(urlPage.isInputTextareaVisible());
 
-            page.locator("textarea").first().fill("mobile test");
+            urlPage.fillInput("mobile test");
 
             // Auto-converts, wait for processing
-            page.waitForTimeout(300);
+            urlPage.waitForConversion();
 
-            String output = page.locator("textarea").nth(1).inputValue();
+            String output = urlPage.getOutput();
             assertTrue(output.contains("mobile"));
         }
     }
@@ -320,9 +296,9 @@ public class UrlEncoderTest {
     class Statistics {
         @Test
         void shouldShowCharacterCounts() {
-            page.locator("textarea").first().fill("test");
+            urlPage.fillInput("test");
 
-            assertTrue(page.locator("text=/characters/i").first().isVisible());
+            assertTrue(urlPage.isCharactersLabelVisible());
         }
     }
 }

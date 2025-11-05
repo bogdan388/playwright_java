@@ -1,6 +1,7 @@
 package com.toolbelt.tests;
 
 import com.microsoft.playwright.*;
+import com.toolbelt.pages.RegexTesterPage;
 import org.junit.jupiter.api.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -10,6 +11,7 @@ public class RegexTesterTest {
     private static Browser browser;
     private BrowserContext context;
     private Page page;
+    private RegexTesterPage regexPage;
 
     @BeforeAll
     static void launchBrowser() {
@@ -32,6 +34,7 @@ public class RegexTesterTest {
         context = browser.newContext(new Browser.NewContextOptions().setBaseURL("https://toolbelt.site"));
         page = context.newPage();
         page.navigate("/regex");
+        regexPage = new RegexTesterPage(page);
 
         // Wait for the page to load
         page.locator("h1:has-text('REGEX TESTER')").waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE));
@@ -47,59 +50,59 @@ public class RegexTesterTest {
     @Test
     void shouldLoadTheRegexTesterPageCorrectly() {
         // Check main elements are present
-        assertTrue(page.locator("h1:has-text('REGEX TESTER')").isVisible());
-        assertTrue(page.locator("text=Test and validate regular expressions").isVisible());
+        assertTrue(regexPage.isTitleVisible());
+        assertTrue(regexPage.isDescriptionVisible());
 
         // Check input fields
-        assertTrue(page.locator("input[placeholder*='regex pattern']").isVisible());
-        assertTrue(page.locator("textarea[placeholder*='text to test']").isVisible());
+        assertTrue(regexPage.isPatternInputVisible());
+        assertTrue(regexPage.isTestStringTextareaVisible());
 
         // Check back button
-        assertTrue(page.locator("button:has-text('Back to Toolbelt')").isVisible());
+        assertTrue(regexPage.isBackToToolbeltButtonVisible());
     }
 
     @Test
     void shouldNavigateBackToHomepage() {
-        page.click("button:has-text('Back to Toolbelt')");
-        assertTrue(page.locator("h1:has-text('TOOLBELT')").isVisible());
+        regexPage.clickBackToToolbelt();
+        assertTrue(regexPage.isToolbeltH1Visible());
     }
 
     @Nested
     class PatternTesting {
         @Test
         void shouldMatchSimplePattern() {
-            page.fill("input[placeholder*='regex pattern']", "test");
-            page.fill("textarea[placeholder*='text to test']", "This is a test string for testing");
+            regexPage.fillPattern("test");
+            regexPage.fillTestString("This is a test string for testing");
 
             // Wait for results
-            page.waitForTimeout(500);
+            regexPage.waitForResults();
 
             // Check matches found
-            assertTrue(page.locator("text=/\\d+ match(es)? found/i").isVisible());
+            assertTrue(regexPage.isMatchesFoundVisible());
         }
 
         @Test
         void shouldShowErrorForInvalidPattern() {
-            page.fill("input[placeholder*='regex pattern']", "[");
-            page.fill("textarea[placeholder*='text to test']", "test");
+            regexPage.fillPattern("[");
+            regexPage.fillTestString("test");
 
             // Wait for error
-            page.waitForTimeout(500);
+            regexPage.waitForResults();
 
             // Check no matches with invalid pattern (error is handled gracefully)
-            assertTrue(page.locator("text=/No matches found/i").isVisible());
+            assertTrue(regexPage.isNoMatchesVisible());
         }
 
         @Test
         void shouldShowNoMatchesMessage() {
-            page.fill("input[placeholder*='regex pattern']", "xyz");
-            page.fill("textarea[placeholder*='text to test']", "abc def ghi");
+            regexPage.fillPattern("xyz");
+            regexPage.fillTestString("abc def ghi");
 
             // Wait for results
-            page.waitForTimeout(500);
+            regexPage.waitForResults();
 
             // Check no matches message
-            assertTrue(page.locator("text=No matches found").isVisible());
+            assertTrue(regexPage.isNoMatchesVisible());
         }
     }
 
@@ -108,12 +111,12 @@ public class RegexTesterTest {
         @Test
         void shouldToggleGlobalFlag() {
             // Set pattern and test string
-            page.fill("input[placeholder*='regex pattern']", "a");
-            page.fill("textarea[placeholder*='text to test']", "aaa");
+            regexPage.fillPattern("a");
+            regexPage.fillTestString("aaa");
 
             // Toggle global flag
-            page.click("button:has-text('g')");
-            page.waitForTimeout(500);
+            regexPage.clickFlagG();
+            regexPage.waitForResults();
 
             // Should find multiple matches with global flag
             assertTrue(page.locator("text=3 matches found").isVisible());
@@ -121,35 +124,35 @@ public class RegexTesterTest {
 
         @Test
         void shouldToggleCaseInsensitiveFlag() {
-            page.fill("input[placeholder*='regex pattern']", "TEST");
-            page.fill("textarea[placeholder*='text to test']", "test Test TEST");
+            regexPage.fillPattern("TEST");
+            regexPage.fillTestString("test Test TEST");
 
             // Without i flag - should find only exact case match
-            page.waitForTimeout(500);
-            String matchText = page.locator("text=/\\d+ match(es)? found/i").textContent();
+            regexPage.waitForResults();
+            String matchText = regexPage.getMatchesFoundText();
             assertTrue(matchText.contains("1 match"));
 
             // Toggle i flag
-            page.click("button:has-text('i')");
-            page.waitForTimeout(500);
+            regexPage.clickFlagI();
+            regexPage.waitForResults();
 
             // With i flag - should find all variations
-            matchText = page.locator("text=/\\d+ match(es)? found/i").textContent();
+            matchText = regexPage.getMatchesFoundText();
             assertTrue(matchText.contains("match"));
         }
 
         @Test
         void shouldToggleMultilineFlag() {
-            page.fill("input[placeholder*='regex pattern']", "^test");
-            page.fill("textarea[placeholder*='text to test']", "first line\ntest line\nthird line");
+            regexPage.fillPattern("^test");
+            regexPage.fillTestString("first line\ntest line\nthird line");
 
             // Without m flag
-            page.waitForTimeout(500);
-            assertTrue(page.locator("text=No matches found").isVisible());
+            regexPage.waitForResults();
+            assertTrue(regexPage.isNoMatchesVisible());
 
             // Toggle m flag
-            page.click("button:has-text('m')");
-            page.waitForTimeout(500);
+            regexPage.clickFlagM();
+            regexPage.waitForResults();
 
             // Should find match at line start
             assertTrue(page.locator("text=/1 match found/i").isVisible());
@@ -158,16 +161,16 @@ public class RegexTesterTest {
         @Test
         void shouldTestAllFlagsSimultaneously() {
             // Enable all flags
-            page.click("button:has-text('g')");
-            page.click("button:has-text('i')");
-            page.click("button:has-text('m')");
-            page.click("button:has-text('s')");
-            page.click("button:has-text('u')");
+            regexPage.clickFlagG();
+            regexPage.clickFlagI();
+            regexPage.clickFlagM();
+            regexPage.clickFlagS();
+            regexPage.clickFlagU();
 
-            page.fill("input[placeholder*='regex pattern']", "test");
-            page.fill("textarea[placeholder*='text to test']", "Test\nTEST\ntest");
+            regexPage.fillPattern("test");
+            regexPage.fillTestString("Test\nTEST\ntest");
 
-            page.waitForTimeout(500);
+            regexPage.waitForResults();
 
             // Should find all matches with all flags
             assertTrue(page.locator("text=/3 matches found/i").isVisible());
@@ -178,33 +181,33 @@ public class RegexTesterTest {
     class QuickExamples {
         @Test
         void shouldLoadEmailValidationExample() {
-            page.selectOption("select:has-text('Select a pattern')", "email");
-            page.waitForTimeout(500);
+            regexPage.selectQuickExample("email");
+            regexPage.waitForResults();
 
             // Check pattern was loaded
-            String patternValue = page.locator("input[placeholder*='regex pattern']").inputValue();
+            String patternValue = regexPage.getPatternValue();
             assertTrue(patternValue.contains("@"));
 
             // Check test string was loaded
-            String testValue = page.locator("textarea[placeholder*='text to test']").inputValue();
+            String testValue = regexPage.getTestStringValue();
             assertTrue(testValue.contains("example.com"));
         }
 
         @Test
         void shouldLoadPhoneNumberExample() {
-            page.selectOption("select:has-text('Select a pattern')", "phone");
-            page.waitForTimeout(500);
+            regexPage.selectQuickExample("phone");
+            regexPage.waitForResults();
 
-            String patternValue = page.locator("input[placeholder*='regex pattern']").inputValue();
+            String patternValue = regexPage.getPatternValue();
             assertTrue(patternValue.contains("\\d{3}"));
         }
 
         @Test
         void shouldLoadUrlValidationExample() {
-            page.selectOption("select:has-text('Select a pattern')", "url");
-            page.waitForTimeout(500);
+            regexPage.selectQuickExample("url");
+            regexPage.waitForResults();
 
-            String patternValue = page.locator("input[placeholder*='regex pattern']").inputValue();
+            String patternValue = regexPage.getPatternValue();
             assertTrue(patternValue.contains("https?"));
         }
 
@@ -213,16 +216,16 @@ public class RegexTesterTest {
             String[] examples = {"email", "phone", "url", "ipv4", "date", "hexColor", "username", "password"};
 
             for (String example : examples) {
-                page.selectOption("select:has-text('Select a pattern')", example);
-                page.waitForTimeout(500);
+                regexPage.selectQuickExample(example);
+                regexPage.waitForResults();
 
                 // Each example should load a pattern
-                String patternValue = page.locator("input[placeholder*='regex pattern']").inputValue();
+                String patternValue = regexPage.getPatternValue();
                 assertNotNull(patternValue);
                 assertTrue(patternValue.length() > 0);
 
                 // Each example should load test strings
-                String testValue = page.locator("textarea[placeholder*='text to test']").inputValue();
+                String testValue = regexPage.getTestStringValue();
                 assertNotNull(testValue);
                 assertTrue(testValue.length() > 0);
             }
@@ -272,50 +275,47 @@ public class RegexTesterTest {
 
         @Test
         void shouldChangeLanguageFlavor() {
-            Locator selectElement = page.locator("select").nth(1);
-
             // Select Python
-            selectElement.selectOption(new SelectOption().setLabel("Python"));
-            page.waitForTimeout(500);
+            regexPage.selectLanguageFlavor("Python");
+            regexPage.waitForResults();
 
             // Check if Python is selected
-            String selectedValue = selectElement.inputValue();
+            String selectedValue = regexPage.getFlavorSelectValue();
             assertEquals("python", selectedValue);
         }
 
         @Test
         void shouldShowHideFlavorInfo() {
             // Click Show Info button
-            page.click("button:has-text('Show Info')");
-            page.waitForTimeout(500);
+            regexPage.clickShowInfo();
+            regexPage.waitForResults();
 
             // Check info is visible
-            assertTrue(page.locator("text=ECMAScript regex engine").isVisible());
+            assertTrue(regexPage.isEcmaScriptEngineVisible());
 
             // Click Hide Info button
-            page.click("button:has-text('Hide Info')");
-            page.waitForTimeout(500);
+            regexPage.clickHideInfo();
+            regexPage.waitForResults();
 
             // Check info is hidden
-            assertFalse(page.locator("text=ECMAScript regex engine").isVisible());
+            assertFalse(regexPage.isEcmaScriptEngineVisible());
         }
 
         @Test
         void shouldDisplayCorrectInfoForEachLanguage() {
-            Locator selectElement = page.locator("select").nth(1);
-            page.click("button:has-text('Show Info')");
+            regexPage.clickShowInfo();
 
             // Test Python
-            selectElement.selectOption(new SelectOption().setLabel("Python"));
-            assertTrue(page.locator("text=Python re module").isVisible());
+            regexPage.selectLanguageFlavor("Python");
+            assertTrue(regexPage.isPythonReModuleVisible());
 
             // Test Go
-            selectElement.selectOption(new SelectOption().setLabel("Go"));
-            assertTrue(page.locator("text=RE2 engine").isVisible());
+            regexPage.selectLanguageFlavor("Go");
+            assertTrue(regexPage.isRe2EngineVisible());
 
             // Test Rust
-            selectElement.selectOption(new SelectOption().setLabel("Rust"));
-            assertTrue(page.locator("text=regex crate").isVisible());
+            regexPage.selectLanguageFlavor("Rust");
+            assertTrue(regexPage.isRegexCrateVisible());
         }
     }
 
@@ -326,28 +326,28 @@ public class RegexTesterTest {
             // Grant clipboard permissions for supported browsers
             context.grantPermissions(java.util.Arrays.asList("clipboard-read", "clipboard-write"));
 
-            page.fill("input[placeholder*='regex pattern']", "test.*pattern");
+            regexPage.fillPattern("test.*pattern");
 
             // Click copy button
-            page.click("button[title='Copy pattern']");
+            regexPage.clickCopyPattern();
 
             // Check for success indicator - copy button should show checkmark
-            assertTrue(page.locator("button[title='Copy pattern'] svg").isVisible());
+            assertTrue(regexPage.isCopyPatternSvgVisible());
         }
 
         @Test
         void shouldClearAllInputs() {
             // Fill inputs
-            page.fill("input[placeholder*='regex pattern']", "test");
-            page.fill("textarea[placeholder*='text to test']", "test string");
+            regexPage.fillPattern("test");
+            regexPage.fillTestString("test string");
 
             // Click clear button
-            page.click("button[title='Clear all']");
-            page.waitForTimeout(500);
+            regexPage.clickClearAll();
+            regexPage.waitForResults();
 
             // Check inputs are cleared
-            String patternValue = page.locator("input[placeholder*='regex pattern']").inputValue();
-            String testValue = page.locator("textarea[placeholder*='text to test']").inputValue();
+            String patternValue = regexPage.getPatternValue();
+            String testValue = regexPage.getTestStringValue();
 
             assertEquals("", patternValue);
             assertEquals("", testValue);
@@ -358,26 +358,26 @@ public class RegexTesterTest {
     class MatchGroups {
         @Test
         void shouldDisplayCapturedGroups() {
-            page.fill("input[placeholder*='regex pattern']", "(\\w+)@(\\w+\\.\\w+)");
-            page.fill("textarea[placeholder*='text to test']", "user@example.com");
+            regexPage.fillPattern("(\\w+)@(\\w+\\.\\w+)");
+            regexPage.fillTestString("user@example.com");
 
-            page.waitForTimeout(500);
+            regexPage.waitForResults();
 
             // Check groups are displayed
-            assertTrue(page.locator("text=Captured Groups").isVisible());
-            assertTrue(page.locator("text=Group 1").isVisible());
-            assertTrue(page.locator("text=Group 2").isVisible());
+            assertTrue(regexPage.isCapturedGroupsVisible());
+            assertTrue(regexPage.isGroup1Visible());
+            assertTrue(regexPage.isGroup2Visible());
         }
 
         @Test
         void shouldShowMatchPositions() {
-            page.fill("input[placeholder*='regex pattern']", "test");
-            page.fill("textarea[placeholder*='text to test']", "This is a test string");
+            regexPage.fillPattern("test");
+            regexPage.fillTestString("This is a test string");
 
-            page.waitForTimeout(500);
+            regexPage.waitForResults();
 
             // Check position is displayed
-            assertTrue(page.locator("text=/Position: \\d+/i").isVisible());
+            assertTrue(regexPage.isPositionTextVisible());
         }
     }
 
@@ -385,10 +385,10 @@ public class RegexTesterTest {
     class ComplexPatterns {
         @Test
         void shouldHandleLookaheadAssertions() {
-            page.fill("input[placeholder*='regex pattern']", "foo(?=bar)");
-            page.fill("textarea[placeholder*='text to test']", "foobar foobaz");
+            regexPage.fillPattern("foo(?=bar)");
+            regexPage.fillTestString("foobar foobaz");
 
-            page.waitForTimeout(500);
+            regexPage.waitForResults();
 
             // Should match only foo followed by bar
             assertTrue(page.locator("text=/1 match found/i").isVisible());
@@ -396,10 +396,10 @@ public class RegexTesterTest {
 
         @Test
         void shouldHandleLookbehindAssertions() {
-            page.fill("input[placeholder*='regex pattern']", "(?<=foo)bar");
-            page.fill("textarea[placeholder*='text to test']", "foobar bazbar");
+            regexPage.fillPattern("(?<=foo)bar");
+            regexPage.fillTestString("foobar bazbar");
 
-            page.waitForTimeout(500);
+            regexPage.waitForResults();
 
             // Should match only bar preceded by foo
             assertTrue(page.locator("text=/1 match found/i").isVisible());
@@ -407,14 +407,14 @@ public class RegexTesterTest {
 
         @Test
         void shouldHandleNamedGroups() {
-            page.fill("input[placeholder*='regex pattern']", "(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})");
-            page.fill("textarea[placeholder*='text to test']", "2025-01-15");
+            regexPage.fillPattern("(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})");
+            regexPage.fillTestString("2025-01-15");
 
-            page.waitForTimeout(500);
+            regexPage.waitForResults();
 
             // Should find match with named groups
             assertTrue(page.locator("text=/1 match found/i").isVisible());
-            assertTrue(page.locator("text=Captured Groups").isVisible());
+            assertTrue(regexPage.isCapturedGroupsVisible());
         }
     }
 
@@ -425,11 +425,11 @@ public class RegexTesterTest {
             // Generate large text
             String largeText = "test ".repeat(10000);
 
-            page.fill("input[placeholder*='regex pattern']", "test");
-            page.fill("textarea[placeholder*='text to test']", largeText);
+            regexPage.fillPattern("test");
+            regexPage.fillTestString(largeText);
 
             // Should process within reasonable time (5 seconds)
-            page.waitForTimeout(1000);
+            regexPage.waitForResults(1000);
 
             assertTrue(page.locator("text=/match(es)? found/i").isVisible(new Locator.IsVisibleOptions().setTimeout(5000)));
         }
@@ -440,11 +440,11 @@ public class RegexTesterTest {
             String testStrings = "Password1!\nweakpass\nStrongP@ss123\nNoSpecial123\nValidP@ssw0rd!\n" +
                 "AnotherValid1!\nInvalid\nShort1!\nThisIsAVeryLongPasswordThatShouldStillWorkProperly123!@#";
 
-            page.fill("input[placeholder*='regex pattern']", complexPattern);
-            page.fill("textarea[placeholder*='text to test']", testStrings);
+            regexPage.fillPattern(complexPattern);
+            regexPage.fillTestString(testStrings);
 
             // Should process complex validation within reasonable time
-            page.waitForTimeout(1000);
+            regexPage.waitForResults(1000);
 
             assertTrue(page.locator("text=/match(es)? found/i").isVisible(new Locator.IsVisibleOptions().setTimeout(5000)));
         }
@@ -460,9 +460,9 @@ public class RegexTesterTest {
             page.navigate("/regex");
 
             // Check elements are still accessible
-            assertTrue(page.locator("h1:has-text('REGEX TESTER')").isVisible());
-            assertTrue(page.locator("input[placeholder*='regex pattern']").isVisible());
-            assertTrue(page.locator("textarea[placeholder*='text to test']").isVisible());
+            assertTrue(regexPage.isTitleVisible());
+            assertTrue(regexPage.isPatternInputVisible());
+            assertTrue(regexPage.isTestStringTextareaVisible());
 
             // Check layout is stacked (not side-by-side)
             BoundingBox patternBox = page.locator("input[placeholder*='regex pattern']").boundingBox();
@@ -480,28 +480,26 @@ public class RegexTesterTest {
         @Test
         void shouldBeKeyboardNavigable() {
             // Focus on pattern input directly and type
-            page.locator("input[placeholder*='regex pattern']").click();
-            page.keyboard().type("test");
+            regexPage.typePattern("test");
 
             // Click on test string input and type
-            page.locator("textarea[placeholder*='text to test']").click();
-            page.keyboard().type("test string");
+            regexPage.typeTestString("test string");
 
             // Should have typed in the inputs
-            String patternValue = page.locator("input[placeholder*='regex pattern']").inputValue();
+            String patternValue = regexPage.getPatternValue();
             assertTrue(patternValue.contains("test"));
 
-            String testValue = page.locator("textarea[placeholder*='text to test']").inputValue();
+            String testValue = regexPage.getTestStringValue();
             assertTrue(testValue.contains("test string"));
         }
 
         @Test
         void shouldHaveProperLabelsAndAriaAttributes() {
             // Check for labels
-            assertTrue(page.locator("label:has-text('Pattern')").isVisible());
-            assertTrue(page.locator("label:has-text('Test String')").isVisible());
-            assertTrue(page.locator("label:has-text('Flags')").isVisible());
-            assertTrue(page.locator("label:has-text('Results')").isVisible());
+            assertTrue(regexPage.isPatternLabelVisible());
+            assertTrue(regexPage.isTestStringLabelVisible());
+            assertTrue(regexPage.isFlagsLabelVisible());
+            assertTrue(regexPage.isResultsLabelVisible());
         }
     }
 
@@ -509,45 +507,45 @@ public class RegexTesterTest {
     class EdgeCases {
         @Test
         void shouldHandleEmptyPatternGracefully() {
-            page.fill("textarea[placeholder*='text to test']", "test string");
+            regexPage.fillTestString("test string");
 
-            page.waitForTimeout(500);
+            regexPage.waitForResults();
 
             // Should not show error or crash
-            assertTrue(page.locator("text=Enter a pattern and test string").isVisible());
+            assertTrue(regexPage.isEnterPatternMessageVisible());
         }
 
         @Test
         void shouldHandleEmptyTestStringGracefully() {
-            page.fill("input[placeholder*='regex pattern']", "test");
+            regexPage.fillPattern("test");
 
-            page.waitForTimeout(500);
+            regexPage.waitForResults();
 
             // Should not show error or crash
-            assertTrue(page.locator("text=Enter a pattern and test string").isVisible());
+            assertTrue(regexPage.isEnterPatternMessageVisible());
         }
 
         @Test
         void shouldHandleSpecialCharactersInPattern() {
-            page.fill("input[placeholder*='regex pattern']", "\\$\\d+\\.\\d{2}");
-            page.fill("textarea[placeholder*='text to test']", "Price: $19.99 or $5.00");
+            regexPage.fillPattern("\\$\\d+\\.\\d{2}");
+            regexPage.fillTestString("Price: $19.99 or $5.00");
 
-            page.waitForTimeout(500);
+            regexPage.waitForResults();
 
             // Should find currency matches
-            assertTrue(page.locator("text=/\\d+ match(es)? found/i").isVisible());
+            assertTrue(regexPage.isMatchesFoundVisible());
         }
 
         @Test
         void shouldHandleUnicodeCharacters() {
-            page.fill("input[placeholder*='regex pattern']", "[α-ω]+");
-            page.fill("textarea[placeholder*='text to test']", "Greek: αβγδε and more ωψχ");
+            regexPage.fillPattern("[α-ω]+");
+            regexPage.fillTestString("Greek: αβγδε and more ωψχ");
 
-            page.click("button:has-text('u')"); // Enable Unicode flag
-            page.waitForTimeout(500);
+            regexPage.clickFlagU(); // Enable Unicode flag
+            regexPage.waitForResults();
 
             // Should handle Unicode properly - check for match results text
-            String results = page.locator("text=/\\d+ match(es)? found/i").textContent();
+            String results = regexPage.getMatchesFoundText();
             assertNotNull(results);
         }
     }
@@ -556,48 +554,46 @@ public class RegexTesterTest {
     class RealWorldScenarios {
         @Test
         void shouldValidateEmailAddresses() {
-            page.selectOption("select:has-text('Select a pattern')", "email");
+            regexPage.selectQuickExample("email");
 
             String emails = "valid@example.com\ninvalid.email\nuser+tag@domain.co.uk\n" +
                 "@nodomain.com\nnodomain@\nproper-email_123@test-site.org";
 
-            page.fill("textarea[placeholder*='text to test']", emails);
-            page.waitForTimeout(500);
+            regexPage.fillTestString(emails);
+            regexPage.waitForResults();
 
             // Should find valid emails
-            assertTrue(page.locator("text=/match(es)? found/i").isVisible());
+            assertTrue(regexPage.isMatchesFoundVisible());
         }
 
         @Test
         void shouldExtractUrlsFromText() {
-            page.selectOption("select:has-text('Select a pattern')", "url");
+            regexPage.selectQuickExample("url");
 
             String text = "Check out these links:\nhttps://www.google.com\nhttp://example.org/path/to/page\n" +
                 "Visit https://github.com/user/repo for more\nNot a URL: just-text-here\n" +
                 "Another one: https://api.service.io/v1/users?id=123&type=admin";
 
-            page.fill("textarea[placeholder*='text to test']", text);
-            page.click("button:has-text('g')"); // Enable global flag
-            page.waitForTimeout(1000);
+            regexPage.fillTestString(text);
+            regexPage.clickFlagG(); // Enable global flag
+            regexPage.waitForResults(1000);
 
             // Should find URLs - check for either singular or plural
-            boolean hasMatches = page.locator("text=/match(es)? found/i").count() > 0 ||
-                                page.locator("text=/found/i").count() > 0;
-            assertTrue(hasMatches);
+            assertTrue(regexPage.hasMatchesOrFound());
         }
 
         @Test
         void shouldValidateStrongPasswords() {
-            page.selectOption("select:has-text('Select a pattern')", "password");
+            regexPage.selectQuickExample("password");
 
             String passwords = "weak\nNoNumber!\nNoSpecial8\nnoUpper1!\nShort1!\n" +
                 "ValidPassword123!\nAnotherGood1@Pass\nThisOneIsAlsoValid99#";
 
-            page.fill("textarea[placeholder*='text to test']", passwords);
-            page.waitForTimeout(500);
+            regexPage.fillTestString(passwords);
+            regexPage.waitForResults();
 
             // Should identify valid strong passwords
-            assertTrue(page.locator("text=/match(es)? found/i").isVisible());
+            assertTrue(regexPage.isMatchesFoundVisible());
         }
     }
 }

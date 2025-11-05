@@ -1,6 +1,7 @@
 package com.toolbelt.tests;
 
 import com.microsoft.playwright.*;
+import com.toolbelt.pages.DiffCheckerPage;
 import org.junit.jupiter.api.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -10,6 +11,7 @@ public class DiffCheckerTest {
     private static Browser browser;
     private BrowserContext context;
     private Page page;
+    private DiffCheckerPage diffPage;
 
     @BeforeAll
     static void launchBrowser() {
@@ -32,6 +34,7 @@ public class DiffCheckerTest {
         context = browser.newContext(new Browser.NewContextOptions().setBaseURL("https://toolbelt.site"));
         page = context.newPage();
         page.navigate("/diff");
+        diffPage = new DiffCheckerPage(page);
     }
 
     @AfterEach
@@ -44,11 +47,11 @@ public class DiffCheckerTest {
     @Test
     void shouldLoadTheDiffCheckerPageCorrectly() {
         // Check page title
-        assertTrue(page.locator("h1").textContent().contains("Diff Checker"));
+        assertTrue(diffPage.getTitleText().contains("Diff Checker"));
 
         // Check input areas
-        assertTrue(page.locator("textarea").first().isVisible());
-        assertTrue(page.locator("textarea").nth(1).isVisible());
+        assertTrue(diffPage.isText1TextareaVisible());
+        assertTrue(diffPage.isText2TextareaVisible());
 
         // Check view buttons
         Locator viewButtons = page.locator("button:has-text('Split View')").or(page.locator("button:has-text('Unified View')"));
@@ -67,14 +70,14 @@ public class DiffCheckerTest {
         void shouldDetectIdenticalTexts() {
             String text = "Same text";
 
-            page.locator("textarea").first().fill(text);
-            page.locator("textarea").nth(1).fill(text);
+            diffPage.fillText1(text);
+            diffPage.fillText2(text);
 
             // Auto-processes - wait for diff to be calculated
-            page.waitForTimeout(500);
+            diffPage.waitForDiffCalculation();
 
             // Should show no differences or statistics showing unchanged
-            assertTrue(page.locator("text=/identical|no differences|unchanged/i").isVisible());
+            assertTrue(diffPage.isIdenticalMessageVisible());
         }
 
         @Test
@@ -82,14 +85,14 @@ public class DiffCheckerTest {
             String text1 = "Line 1\nLine 2";
             String text2 = "Line 1\nLine 2\nLine 3";
 
-            page.locator("textarea").first().fill(text1);
-            page.locator("textarea").nth(1).fill(text2);
+            diffPage.fillText1(text1);
+            diffPage.fillText2(text2);
 
             // Auto-processes - wait for diff to be calculated
-            page.waitForTimeout(500);
+            diffPage.waitForDiffCalculation();
 
             // Should show differences
-            assertTrue(page.locator("text=/added|\\+1|differences|changes/i").isVisible());
+            assertTrue(diffPage.isAddedMessageVisible());
         }
 
         @Test
@@ -97,13 +100,13 @@ public class DiffCheckerTest {
             String text1 = "Line 1\nLine 2\nLine 3";
             String text2 = "Line 1\nLine 3";
 
-            page.locator("textarea").first().fill(text1);
-            page.locator("textarea").nth(1).fill(text2);
+            diffPage.fillText1(text1);
+            diffPage.fillText2(text2);
 
             // Auto-processes - wait for diff to be calculated
-            page.waitForTimeout(500);
+            diffPage.waitForDiffCalculation();
 
-            assertTrue(page.locator("text=/removed|-1|differences|changes/i").isVisible());
+            assertTrue(diffPage.isRemovedMessageVisible());
         }
 
         @Test
@@ -111,13 +114,13 @@ public class DiffCheckerTest {
             String text1 = "Hello World";
             String text2 = "Hello Universe";
 
-            page.locator("textarea").first().fill(text1);
-            page.locator("textarea").nth(1).fill(text2);
+            diffPage.fillText1(text1);
+            diffPage.fillText2(text2);
 
             // Auto-processes - wait for diff to be calculated
-            page.waitForTimeout(500);
+            diffPage.waitForDiffCalculation();
 
-            assertTrue(page.locator("text=/modified|~1|differences|changes/i").isVisible());
+            assertTrue(diffPage.isModifiedMessageVisible());
         }
     }
 
@@ -128,25 +131,18 @@ public class DiffCheckerTest {
             String text1 = "Line 1\nLine 2";
             String text2 = "Line 1\nLine 3";
 
-            page.locator("textarea").first().fill(text1);
-            page.locator("textarea").nth(1).fill(text2);
+            diffPage.fillText1(text1);
+            diffPage.fillText2(text2);
 
             // Auto-processes - wait for diff to be calculated
-            page.waitForTimeout(500);
+            diffPage.waitForDiffCalculation();
 
             // Check if view toggle exists
-            Locator unifiedButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)Unified View"));
-            Locator splitButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)Split View"));
+            diffPage.clickUnifiedView();
+            page.waitForTimeout(200);
 
-            if (unifiedButton.count() > 0) {
-                unifiedButton.first().click();
-                page.waitForTimeout(200);
-            }
-
-            if (splitButton.count() > 0) {
-                splitButton.first().click();
-                page.waitForTimeout(200);
-            }
+            diffPage.clickSplitView();
+            page.waitForTimeout(200);
         }
     }
 
@@ -158,19 +154,16 @@ public class DiffCheckerTest {
             String text2 = "Hello    World";
 
             // Enable ignore whitespace first
-            Locator ignoreWhitespace = page.locator("text=/Ignore.*Whitespace/i");
-            if (ignoreWhitespace.count() > 0) {
-                ignoreWhitespace.first().click();
-            }
+            diffPage.clickIgnoreWhitespace();
 
-            page.locator("textarea").first().fill(text1);
-            page.locator("textarea").nth(1).fill(text2);
+            diffPage.fillText1(text1);
+            diffPage.fillText2(text2);
 
             // Auto-processes - wait for diff to be calculated
-            page.waitForTimeout(500);
+            diffPage.waitForDiffCalculation();
 
             // With whitespace ignored, should show no changes
-            assertTrue(page.locator("text=/unchanged|no differences/i").isVisible());
+            assertTrue(diffPage.isIdenticalMessageVisible());
         }
 
         @Test
@@ -179,19 +172,16 @@ public class DiffCheckerTest {
             String text2 = "hello world";
 
             // Enable ignore case first
-            Locator ignoreCase = page.locator("text=/Ignore.*Case/i");
-            if (ignoreCase.count() > 0) {
-                ignoreCase.first().click();
-            }
+            diffPage.clickIgnoreCase();
 
-            page.locator("textarea").first().fill(text1);
-            page.locator("textarea").nth(1).fill(text2);
+            diffPage.fillText1(text1);
+            diffPage.fillText2(text2);
 
             // Auto-processes - wait for diff to be calculated
-            page.waitForTimeout(500);
+            diffPage.waitForDiffCalculation();
 
             // With case ignored, should show no changes
-            assertTrue(page.locator("text=/unchanged|no differences/i").isVisible());
+            assertTrue(diffPage.isIdenticalMessageVisible());
         }
     }
 
@@ -199,34 +189,27 @@ public class DiffCheckerTest {
     class UIControls {
         @Test
         void shouldLoadSampleTexts() {
-            Locator sampleButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Sample$"));
+            diffPage.clickSample();
 
-            if (sampleButton.count() > 0) {
-                sampleButton.first().click();
+            String text1 = diffPage.getText1();
+            String text2 = diffPage.getText2();
 
-                String text1 = page.locator("textarea").first().inputValue();
-                String text2 = page.locator("textarea").nth(1).inputValue();
-
-                assertTrue(text1.length() > 0);
-                assertTrue(text2.length() > 0);
-            }
+            assertTrue(text1.length() > 0);
+            assertTrue(text2.length() > 0);
         }
 
         @Test
         void shouldClearBothInputs() {
-            page.locator("textarea").first().fill("Test 1");
-            page.locator("textarea").nth(1).fill("Test 2");
+            diffPage.fillText1("Test 1");
+            diffPage.fillText2("Test 2");
 
-            Locator clearButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Clear$"));
-            if (clearButton.count() > 0) {
-                clearButton.first().click();
+            diffPage.clickClear();
 
-                String text1 = page.locator("textarea").first().inputValue();
-                String text2 = page.locator("textarea").nth(1).inputValue();
+            String text1 = diffPage.getText1();
+            String text2 = diffPage.getText2();
 
-                assertEquals("", text1);
-                assertEquals("", text2);
-            }
+            assertEquals("", text1);
+            assertEquals("", text2);
         }
 
         @Test
@@ -234,19 +217,16 @@ public class DiffCheckerTest {
             String originalText1 = "Text 1";
             String originalText2 = "Text 2";
 
-            page.locator("textarea").first().fill(originalText1);
-            page.locator("textarea").nth(1).fill(originalText2);
+            diffPage.fillText1(originalText1);
+            diffPage.fillText2(originalText2);
 
-            Locator swapButton = page.locator("button[title*='Swap']");
-            if (swapButton.count() > 0) {
-                swapButton.first().click();
+            diffPage.clickSwap();
 
-                String text1 = page.locator("textarea").first().inputValue();
-                String text2 = page.locator("textarea").nth(1).inputValue();
+            String text1 = diffPage.getText1();
+            String text2 = diffPage.getText2();
 
-                assertEquals(originalText2, text1);
-                assertEquals(originalText1, text2);
-            }
+            assertEquals(originalText2, text1);
+            assertEquals(originalText1, text2);
         }
     }
 
@@ -257,14 +237,14 @@ public class DiffCheckerTest {
             String text1 = "Line 1\nLine 2\nLine 3";
             String text2 = "Line 1\nModified Line 2\nLine 3\nLine 4";
 
-            page.locator("textarea").first().fill(text1);
-            page.locator("textarea").nth(1).fill(text2);
+            diffPage.fillText1(text1);
+            diffPage.fillText2(text2);
 
             // Auto-processes - wait for diff to be calculated
-            page.waitForTimeout(500);
+            diffPage.waitForDiffCalculation();
 
             // Check for statistics
-            assertTrue(page.locator("text=/added|removed|modified|total lines/i").isVisible());
+            assertTrue(diffPage.isStatisticsVisible());
         }
     }
 
@@ -287,11 +267,11 @@ public class DiffCheckerTest {
             }
             longText2.append("Line\n");
 
-            page.locator("textarea").first().fill(longText1.toString());
-            page.locator("textarea").nth(1).fill(longText2.toString());
+            diffPage.fillText1(longText1.toString());
+            diffPage.fillText2(longText2.toString());
 
             // Auto-processes - wait for diff to be calculated
-            page.waitForTimeout(500);
+            diffPage.waitForDiffCalculation();
 
             assertTrue(page.locator("text=/added|total lines/i").isVisible());
         }
@@ -303,15 +283,15 @@ public class DiffCheckerTest {
         void shouldBeResponsiveOnMobile() {
             page.setViewportSize(375, 667);
 
-            assertTrue(page.locator("h1").isVisible());
-            assertTrue(page.locator("textarea").first().isVisible());
+            assertTrue(diffPage.isTitleVisible());
+            assertTrue(diffPage.isText1TextareaVisible());
 
             // Test comparison on mobile
-            page.locator("textarea").first().fill("Test 1");
-            page.locator("textarea").nth(1).fill("Test 2");
+            diffPage.fillText1("Test 1");
+            diffPage.fillText2("Test 2");
 
             // Auto-processes - wait for diff to be calculated
-            page.waitForTimeout(500);
+            diffPage.waitForDiffCalculation();
 
             assertTrue(page.locator("text=/modified|added|removed|total lines/i").isVisible());
         }
@@ -321,8 +301,8 @@ public class DiffCheckerTest {
     class Accessibility {
         @Test
         void shouldHaveProperLabels() {
-            assertTrue(page.locator("text=/Original|Text 1|First/i").first().isVisible());
-            assertTrue(page.locator("text=/Modified|Text 2|Second/i").first().isVisible());
+            assertTrue(diffPage.isOriginalLabelVisible());
+            assertTrue(diffPage.isModifiedLabelVisible());
         }
     }
 }

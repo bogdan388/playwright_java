@@ -1,6 +1,7 @@
 package com.toolbelt.tests;
 
 import com.microsoft.playwright.*;
+import com.toolbelt.pages.Base64EncoderPage;
 import org.junit.jupiter.api.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -10,6 +11,7 @@ public class Base64EncoderTest {
     private static Browser browser;
     private BrowserContext context;
     private Page page;
+    private Base64EncoderPage base64Page;
 
     @BeforeAll
     static void launchBrowser() {
@@ -32,6 +34,7 @@ public class Base64EncoderTest {
         context = browser.newContext(new Browser.NewContextOptions().setBaseURL("https://toolbelt.site"));
         page = context.newPage();
         page.navigate("/base64");
+        base64Page = new Base64EncoderPage(page);
     }
 
     @AfterEach
@@ -44,19 +47,19 @@ public class Base64EncoderTest {
     @Test
     void shouldLoadTheBase64EncoderPageCorrectly() {
         // Check page title
-        assertNotNull(page.locator("h1").textContent());
-        assertTrue(page.locator("h1").textContent().contains("Base64 Encoder"));
+        assertNotNull(base64Page.getTitleText());
+        assertTrue(base64Page.getTitleText().contains("Base64 Encoder"));
 
         // Check description
-        assertTrue(page.locator("text=/Encode and decode Base64/i").isVisible());
+        assertTrue(base64Page.isDescriptionVisible());
 
         // Check input and output areas
-        assertTrue(page.locator("textarea").first().isVisible());
-        assertTrue(page.locator("textarea").nth(1).isVisible());
+        assertTrue(base64Page.isInputTextareaVisible());
+        assertTrue(base64Page.isOutputTextareaVisible());
 
         // Check mode buttons
-        assertTrue(page.locator("button:has-text('Encode')").first().isVisible());
-        assertTrue(page.locator("button:has-text('Decode')").first().isVisible());
+        assertTrue(base64Page.isEncodeModeButtonVisible());
+        assertTrue(base64Page.isDecodeModeButtonVisible());
     }
 
     @Test
@@ -70,13 +73,11 @@ public class Base64EncoderTest {
         @Test
         void shouldEncodePlainTextToBase64() {
             String inputText = "Hello World";
-            Locator inputArea = page.locator("textarea").first();
 
-            inputArea.fill(inputText);
-            page.locator("button:has-text('Encode')").nth(1).click();
+            base64Page.fillInput(inputText);
+            base64Page.clickEncodeAction();
 
-            Locator outputArea = page.locator("textarea").nth(1);
-            String encoded = outputArea.inputValue();
+            String encoded = base64Page.getOutput();
 
             assertEquals("SGVsbG8gV29ybGQ=", encoded);
         }
@@ -84,16 +85,14 @@ public class Base64EncoderTest {
         @Test
         void shouldDecodeBase64ToPlainText() {
             // Switch to decode mode
-            page.locator("button:has-text('Decode')").first().click();
+            base64Page.clickDecodeModeButton();
 
             String inputText = "SGVsbG8gV29ybGQ=";
-            Locator inputArea = page.locator("textarea").first();
 
-            inputArea.fill(inputText);
-            page.locator("button:has-text('Decode')").nth(1).click();
+            base64Page.fillInput(inputText);
+            base64Page.clickDecodeAction();
 
-            Locator outputArea = page.locator("textarea").nth(1);
-            String decoded = outputArea.inputValue();
+            String decoded = base64Page.getOutput();
 
             assertEquals("Hello World", decoded);
         }
@@ -101,15 +100,13 @@ public class Base64EncoderTest {
         @Test
         void shouldHandleUrlSafeEncoding() {
             // Enable URL-safe mode
-            page.check("text=/URL Safe/i");
+            base64Page.checkUrlSafe();
 
             String inputText = "Hello?World&Test=123";
-            Locator inputArea = page.locator("textarea").first();
 
-            inputArea.fill(inputText);
+            base64Page.fillInput(inputText);
 
-            Locator outputArea = page.locator("textarea").nth(1);
-            String encoded = outputArea.inputValue();
+            String encoded = base64Page.getOutput();
 
             // URL-safe Base64 uses - and _ instead of + and /
             assertFalse(encoded.contains("+"));
@@ -119,13 +116,11 @@ public class Base64EncoderTest {
         @Test
         void shouldHandleSpecialCharacters() {
             String inputText = "Special chars: @#$%^&*()";
-            Locator inputArea = page.locator("textarea").first();
 
-            inputArea.fill(inputText);
-            page.locator("button:has-text('Encode')").nth(1).click();
+            base64Page.fillInput(inputText);
+            base64Page.clickEncodeAction();
 
-            Locator outputArea = page.locator("textarea").nth(1);
-            String encoded = outputArea.inputValue();
+            String encoded = base64Page.getOutput();
 
             assertNotNull(encoded);
             assertTrue(encoded.length() > 0);
@@ -134,13 +129,11 @@ public class Base64EncoderTest {
         @Test
         void shouldHandleUnicodeCharacters() {
             String inputText = "Hello 世界 🌍";
-            Locator inputArea = page.locator("textarea").first();
 
-            inputArea.fill(inputText);
-            page.locator("button:has-text('Encode')").nth(1).click();
+            base64Page.fillInput(inputText);
+            base64Page.clickEncodeAction();
 
-            Locator outputArea = page.locator("textarea").nth(1);
-            String encoded = outputArea.inputValue();
+            String encoded = base64Page.getOutput();
 
             assertNotNull(encoded);
             assertTrue(encoded.length() > 0);
@@ -152,19 +145,17 @@ public class Base64EncoderTest {
         @Test
         void shouldSwapInputAndOutput() {
             String inputText = "Hello World";
-            Locator inputArea = page.locator("textarea").first();
 
-            inputArea.fill(inputText);
-            page.locator("button:has-text('Encode')").nth(1).click();
+            base64Page.fillInput(inputText);
+            base64Page.clickEncodeAction();
 
-            Locator outputArea = page.locator("textarea").nth(1);
-            String encoded = outputArea.inputValue();
+            String encoded = base64Page.getOutput();
 
             // Click swap button
-            page.locator("button:has-text('Swap')").click();
+            base64Page.clickSwap();
 
             // Input should now have the encoded value
-            String newInput = inputArea.inputValue();
+            String newInput = base64Page.getInput();
             assertEquals(encoded, newInput);
         }
 
@@ -174,18 +165,15 @@ public class Base64EncoderTest {
             context.grantPermissions(java.util.Arrays.asList("clipboard-read", "clipboard-write"));
 
             String inputText = "Test";
-            Locator inputArea = page.locator("textarea").first();
 
-            inputArea.fill(inputText);
-            page.locator("button:has-text('Encode')").nth(1).click();
+            base64Page.fillInput(inputText);
+            base64Page.clickEncodeAction();
 
-            // Wait for copy button to be visible
-            Locator copyButton = page.locator("button:has-text('Copy')");
-            copyButton.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE));
-            copyButton.click();
+            // Wait for copy button to be visible and click
+            base64Page.clickCopy();
 
             // Check for success indicator
-            assertTrue(page.locator("text=/Copied/i").isVisible(new Locator.IsVisibleOptions().setTimeout(2000)));
+            assertTrue(base64Page.isCopiedIndicatorVisible());
         }
 
         @Test
@@ -196,8 +184,7 @@ public class Base64EncoderTest {
             if (sampleButton.count() > 0) {
                 sampleButton.first().click();
 
-                Locator inputArea = page.locator("textarea").first();
-                String value = inputArea.inputValue();
+                String value = base64Page.getInput();
 
                 assertTrue(value.length() > 0);
             }
@@ -205,8 +192,7 @@ public class Base64EncoderTest {
 
         @Test
         void shouldClearInput() {
-            Locator inputArea = page.locator("textarea").first();
-            inputArea.fill("Some text");
+            base64Page.fillInput("Some text");
 
             Locator clearButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)clear"));
 
@@ -214,7 +200,7 @@ public class Base64EncoderTest {
             if (clearButton.count() > 0) {
                 clearButton.first().click();
 
-                String value = inputArea.inputValue();
+                String value = base64Page.getInput();
                 assertEquals("", value);
             }
         }
@@ -224,21 +210,18 @@ public class Base64EncoderTest {
     class ErrorHandling {
         @Test
         void shouldHandleEmptyInputGracefully() {
-            Locator outputArea = page.locator("textarea").nth(1);
-            String value = outputArea.inputValue();
+            String value = base64Page.getOutput();
 
             assertEquals("", value);
         }
 
         @Test
         void shouldShowErrorForInvalidBase64InDecodeMode() {
-            page.locator("button:has-text('Decode')").first().click();
+            base64Page.clickDecodeModeButton();
 
-            Locator inputArea = page.locator("textarea").first();
-            inputArea.fill("Invalid!!!Base64");
+            base64Page.fillInput("Invalid!!!Base64");
 
-            Locator outputArea = page.locator("textarea").nth(1);
-            String value = outputArea.inputValue();
+            String value = base64Page.getOutput();
 
             // Either shows error or empty
             assertTrue(value.length() >= 0);
@@ -250,41 +233,37 @@ public class Base64EncoderTest {
         @Test
         void shouldEncodeAndDecodeBackToOriginal() {
             String originalText = "Round trip test!";
-            Locator inputArea = page.locator("textarea").first();
 
             // Encode
-            inputArea.fill(originalText);
-            page.locator("button:has-text('Encode')").nth(1).click();
+            base64Page.fillInput(originalText);
+            base64Page.clickEncodeAction();
 
-            Locator outputArea = page.locator("textarea").nth(1);
-            String encoded = outputArea.inputValue();
+            String encoded = base64Page.getOutput();
 
             // Switch to decode
-            page.locator("button:has-text('Decode')").first().click();
-            inputArea.fill(encoded);
-            page.locator("button:has-text('Decode')").nth(1).click();
+            base64Page.clickDecodeModeButton();
+            base64Page.fillInput(encoded);
+            base64Page.clickDecodeAction();
 
-            String decoded = outputArea.inputValue();
+            String decoded = base64Page.getOutput();
             assertEquals(originalText, decoded);
         }
 
         @Test
         void shouldHandleMultilineText() {
             String multilineText = "Line 1\nLine 2\nLine 3";
-            Locator inputArea = page.locator("textarea").first();
 
-            inputArea.fill(multilineText);
-            page.locator("button:has-text('Encode')").nth(1).click();
+            base64Page.fillInput(multilineText);
+            base64Page.clickEncodeAction();
 
-            Locator outputArea = page.locator("textarea").nth(1);
-            String encoded = outputArea.inputValue();
+            String encoded = base64Page.getOutput();
 
             // Decode it
-            page.locator("button:has-text('Decode')").first().click();
-            inputArea.fill(encoded);
-            page.locator("button:has-text('Decode')").nth(1).click();
+            base64Page.clickDecodeModeButton();
+            base64Page.fillInput(encoded);
+            base64Page.clickDecodeAction();
 
-            String decoded = outputArea.inputValue();
+            String decoded = base64Page.getOutput();
             assertEquals(multilineText, decoded);
         }
     }
@@ -294,9 +273,8 @@ public class Base64EncoderTest {
         @Test
         void shouldShowCharacterCounts() {
             String inputText = "Test";
-            Locator inputArea = page.locator("textarea").first();
 
-            inputArea.fill(inputText);
+            base64Page.fillInput(inputText);
 
             Locator statsLocator = page.locator("text=/characters|length|count/i");
             if (statsLocator.count() > 0) {
@@ -311,17 +289,15 @@ public class Base64EncoderTest {
         void shouldBeResponsiveOnMobile() {
             page.setViewportSize(375, 667);
 
-            assertTrue(page.locator("h1").isVisible());
-            assertTrue(page.locator("textarea").first().isVisible());
-            assertTrue(page.locator("button:has-text('Encode')").first().isVisible());
+            assertTrue(base64Page.isTitleVisible());
+            assertTrue(base64Page.isInputTextareaVisible());
+            assertTrue(base64Page.isEncodeModeButtonVisible());
 
             // Test encoding on mobile
-            Locator inputArea = page.locator("textarea").first();
-            inputArea.fill("Mobile test");
-            page.locator("button:has-text('Encode')").nth(1).click();
+            base64Page.fillInput("Mobile test");
+            base64Page.clickEncodeAction();
 
-            Locator outputArea = page.locator("textarea").nth(1);
-            String value = outputArea.inputValue();
+            String value = base64Page.getOutput();
             assertNotNull(value);
             assertTrue(value.length() > 0);
         }
@@ -331,8 +307,8 @@ public class Base64EncoderTest {
     class Accessibility {
         @Test
         void shouldHaveProperLabels() {
-            assertTrue(page.locator("text=/Input/i").isVisible());
-            assertTrue(page.locator("text=/Output/i").isVisible());
+            assertTrue(base64Page.isInputLabelVisible());
+            assertTrue(base64Page.isOutputLabelVisible());
         }
     }
 }

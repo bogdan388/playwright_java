@@ -1,6 +1,7 @@
 package com.toolbelt.tests;
 
 import com.microsoft.playwright.*;
+import com.toolbelt.pages.HashGeneratorPage;
 import org.junit.jupiter.api.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -10,6 +11,7 @@ public class HashGeneratorTest {
     private static Browser browser;
     private BrowserContext context;
     private Page page;
+    private HashGeneratorPage hashPage;
 
     @BeforeAll
     static void launchBrowser() {
@@ -32,6 +34,7 @@ public class HashGeneratorTest {
         context = browser.newContext(new Browser.NewContextOptions().setBaseURL("https://toolbelt.site"));
         page = context.newPage();
         page.navigate("/hash");
+        hashPage = new HashGeneratorPage(page);
     }
 
     @AfterEach
@@ -43,13 +46,13 @@ public class HashGeneratorTest {
 
     @Test
     void shouldLoadTheHashGeneratorPageCorrectly() {
-        assertTrue(page.locator("h1").textContent().contains("Hash Generator"));
-        assertTrue(page.locator("textarea").isVisible());
+        assertTrue(hashPage.getTitleText().contains("Hash Generator"));
+        assertTrue(hashPage.isTextareaVisible());
     }
 
     @Test
     void shouldNavigateBackToHomepage() {
-        page.click("a[href='/']");
+        hashPage.navigateToHome();
         assertTrue(page.url().endsWith("/"));
     }
 
@@ -60,11 +63,11 @@ public class HashGeneratorTest {
             String input = "Hello World";
 
             // Select MD5
-            page.selectOption("select", "MD5");
-            page.locator("textarea").fill(input);
+            hashPage.selectAlgorithm("MD5");
+            hashPage.fillInput(input);
 
             // Auto-generates, wait for hash to appear
-            page.waitForTimeout(500);
+            hashPage.waitForHashGeneration();
 
             // MD5 of "Hello World" is b10a8db164e0754105b7a99be72e3fe5
             assertTrue(page.locator("text=/b10a8db164e0754105b7a99be72e3fe5/i").isVisible());
@@ -74,18 +77,14 @@ public class HashGeneratorTest {
         void shouldGenerateSHA256Hash() {
             String input = "test";
 
-            page.selectOption("select", "SHA256");
-            page.locator("textarea").fill(input);
+            hashPage.selectAlgorithm("SHA256");
+            hashPage.fillInput(input);
 
             // Auto-generates, wait for hash to appear
-            page.waitForTimeout(500);
+            hashPage.waitForHashGeneration();
 
             // Should show a 64-character hex string
-            Locator hashElement = page.locator("[class*='hash']")
-                .or(page.locator("code"))
-                .or(page.locator("div.font-mono"))
-                .first();
-            String hash = hashElement.textContent();
+            String hash = hashPage.getHashOutput();
             assertEquals(64, hash.replaceAll("\\s", "").length());
         }
 
@@ -93,18 +92,14 @@ public class HashGeneratorTest {
         void shouldGenerateSHA512Hash() {
             String input = "test";
 
-            page.selectOption("select", "SHA512");
-            page.locator("textarea").fill(input);
+            hashPage.selectAlgorithm("SHA512");
+            hashPage.fillInput(input);
 
             // Auto-generates, wait for hash to appear
-            page.waitForTimeout(500);
+            hashPage.waitForHashGeneration();
 
             // SHA-512 produces 128-character hex string
-            Locator hashElement = page.locator("[class*='hash']")
-                .or(page.locator("code"))
-                .or(page.locator("div.font-mono"))
-                .first();
-            String hash = hashElement.textContent();
+            String hash = hashPage.getHashOutput();
             assertEquals(128, hash.replaceAll("\\s", "").length());
         }
 
@@ -112,18 +107,14 @@ public class HashGeneratorTest {
         void shouldGenerateSHA1Hash() {
             String input = "test";
 
-            page.selectOption("select", "SHA1");
-            page.locator("textarea").fill(input);
+            hashPage.selectAlgorithm("SHA1");
+            hashPage.fillInput(input);
 
             // Auto-generates, wait for hash to appear
-            page.waitForTimeout(500);
+            hashPage.waitForHashGeneration();
 
             // SHA-1 produces 40-character hex string
-            Locator hashElement = page.locator("[class*='hash']")
-                .or(page.locator("code"))
-                .or(page.locator("div.font-mono"))
-                .first();
-            String hash = hashElement.textContent();
+            String hash = hashPage.getHashOutput();
             assertEquals(40, hash.replaceAll("\\s", "").length());
         }
     }
@@ -133,16 +124,13 @@ public class HashGeneratorTest {
         @Test
         void shouldGenerateAllHashesInBatchMode() {
             String input = "test";
-            page.locator("textarea").fill(input);
+            hashPage.fillInput(input);
 
-            Locator batchButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^(All|Batch)$"));
-            if (batchButton.count() > 0) {
-                batchButton.first().click();
+            hashPage.clickBatch();
 
-                // Should show multiple hash types
-                assertTrue(page.locator("text=/MD5/i").isVisible());
-                assertTrue(page.locator("text=/SHA-256/i").isVisible());
-            }
+            // Should show multiple hash types
+            assertTrue(hashPage.isMd5Visible());
+            assertTrue(hashPage.isSha256Visible());
         }
     }
 
@@ -152,30 +140,21 @@ public class HashGeneratorTest {
         void shouldCopyHashToClipboard() {
             context.grantPermissions(java.util.Arrays.asList("clipboard-read", "clipboard-write"));
 
-            page.selectOption("select", "MD5");
-            page.locator("textarea").fill("test");
+            hashPage.selectAlgorithm("MD5");
+            hashPage.fillInput("test");
 
             // Auto-generates, wait for hash
-            page.waitForTimeout(500);
+            hashPage.waitForHashGeneration();
 
-            Locator copyButton = page.locator("button[title*='Copy']")
-                .or(page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Copy$")));
-            if (copyButton.count() > 0) {
-                copyButton.first().click();
-                assertTrue(page.locator(".text-green-400")
-                    .or(page.locator("text=/copied/i"))
-                    .isVisible(new Locator.IsVisibleOptions().setTimeout(2000)));
-            }
+            hashPage.clickCopy();
+            assertTrue(hashPage.isSuccessIndicatorVisible());
         }
 
         @Test
         void shouldLoadSampleText() {
-            Locator sampleButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Sample$"));
-            if (sampleButton.count() > 0) {
-                sampleButton.first().click();
-                String value = page.locator("textarea").inputValue();
-                assertTrue(value.length() > 0);
-            }
+            hashPage.clickSample();
+            String value = hashPage.getInputValue();
+            assertTrue(value.length() > 0);
         }
     }
 
@@ -185,36 +164,22 @@ public class HashGeneratorTest {
         void shouldVerifyMatchingHash() {
             String input = "test";
 
-            page.selectOption("select", "MD5");
-            page.locator("textarea").fill(input);
+            hashPage.selectAlgorithm("MD5");
+            hashPage.fillInput(input);
 
             // Auto-generates, wait for hash
-            page.waitForTimeout(500);
+            hashPage.waitForHashGeneration();
 
             // Get the generated hash
-            Locator hashElement = page.locator("[class*='hash']")
-                .or(page.locator("code"))
-                .or(page.locator("div.font-mono"))
-                .first();
-            String hash = hashElement.textContent();
+            String hash = hashPage.getHashOutput();
 
             // Enable verify mode first
-            Locator verifyCheckbox = page.locator("text=/Verify Mode/i");
-            if (verifyCheckbox.count() > 0) {
-                verifyCheckbox.first().click();
+            hashPage.clickVerifyMode();
 
-                // Enter same hash for verification
-                Locator verifyInput = page.locator("input[placeholder*='hash']")
-                    .or(page.locator("input[placeholder*='verify']"));
-                if (verifyInput.count() > 0) {
-                    verifyInput.first().fill(hash.trim());
-                    Locator verifyButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Verify$"));
-                    if (verifyButton.count() > 0) {
-                        verifyButton.first().click();
-                        assertTrue(page.locator("text=/match|valid/i").isVisible());
-                    }
-                }
-            }
+            // Enter same hash for verification
+            hashPage.fillVerifyInput(hash.trim());
+            hashPage.clickVerify();
+            assertTrue(hashPage.isMatchValidVisible());
         }
     }
 
@@ -234,18 +199,15 @@ public class HashGeneratorTest {
         void shouldBeResponsiveOnMobile() {
             page.setViewportSize(375, 667);
 
-            assertTrue(page.locator("h1").isVisible());
-            assertTrue(page.locator("textarea").isVisible());
+            assertTrue(hashPage.isTitleVisible());
+            assertTrue(hashPage.isTextareaVisible());
 
-            page.locator("textarea").fill("mobile test");
+            hashPage.fillInput("mobile test");
 
             // Auto-generates, wait for hash
-            page.waitForTimeout(500);
+            hashPage.waitForHashGeneration();
 
-            assertTrue(page.locator("[class*='hash']")
-                .or(page.locator("code"))
-                .or(page.locator("div.font-mono"))
-                .isVisible());
+            assertTrue(hashPage.isHashOutputVisible());
         }
     }
 }

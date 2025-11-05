@@ -1,6 +1,7 @@
 package com.toolbelt.tests;
 
 import com.microsoft.playwright.*;
+import com.toolbelt.pages.TextCaseConverterPage;
 import org.junit.jupiter.api.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -10,6 +11,7 @@ public class TextCaseConverterTest {
     private static Browser browser;
     private BrowserContext context;
     private Page page;
+    private TextCaseConverterPage textCasePage;
 
     @BeforeAll
     static void launchBrowser() {
@@ -32,6 +34,7 @@ public class TextCaseConverterTest {
         context = browser.newContext(new Browser.NewContextOptions().setBaseURL("https://toolbelt.site"));
         page = context.newPage();
         page.navigate("/text-case");
+        textCasePage = new TextCaseConverterPage(page);
     }
 
     @AfterEach
@@ -43,15 +46,15 @@ public class TextCaseConverterTest {
 
     @Test
     void shouldLoadTheTextCaseConverterPageCorrectly() {
-        assertTrue(page.locator("h1").textContent().contains("Text Case Converter"));
-        assertTrue(page.locator("text=/Convert text between different case formats/i").isVisible());
-        assertTrue(page.locator("textarea").first().isVisible());
-        assertTrue(page.locator("textarea").nth(1).isVisible());
+        assertTrue(textCasePage.getTitleText().contains("Text Case Converter"));
+        assertTrue(textCasePage.isDescriptionVisible());
+        assertTrue(textCasePage.isInputTextareaVisible());
+        assertTrue(textCasePage.isOutputTextareaVisible());
     }
 
     @Test
     void shouldNavigateBackToHomepage() {
-        page.click("a[href='/']");
+        textCasePage.navigateToHome();
         assertTrue(page.url().endsWith("/"));
     }
 
@@ -61,13 +64,13 @@ public class TextCaseConverterTest {
         void shouldConvertToUppercase() {
             String input = "hello world";
 
-            page.locator("button:has-text('UPPERCASE')").click();
-            page.locator("textarea").first().fill(input);
+            textCasePage.clickUppercase();
+            textCasePage.fillInput(input);
 
             // Auto-converts, wait for processing
-            page.waitForTimeout(300);
+            textCasePage.waitForConversion();
 
-            String output = page.locator("textarea").nth(1).inputValue();
+            String output = textCasePage.getOutput();
             assertEquals("HELLO WORLD", output);
         }
 
@@ -75,13 +78,13 @@ public class TextCaseConverterTest {
         void shouldConvertToLowercase() {
             String input = "HELLO WORLD";
 
-            page.locator("button:has-text('lowercase')").click();
-            page.locator("textarea").first().fill(input);
+            textCasePage.clickLowercase();
+            textCasePage.fillInput(input);
 
             // Auto-converts, wait for processing
-            page.waitForTimeout(300);
+            textCasePage.waitForConversion();
 
-            String output = page.locator("textarea").nth(1).inputValue();
+            String output = textCasePage.getOutput();
             assertEquals("hello world", output);
         }
 
@@ -89,13 +92,13 @@ public class TextCaseConverterTest {
         void shouldConvertToTitleCase() {
             String input = "hello world test";
 
-            page.locator("button:has-text('Title Case')").click();
-            page.locator("textarea").first().fill(input);
+            textCasePage.clickTitleCase();
+            textCasePage.fillInput(input);
 
             // Auto-converts, wait for processing
-            page.waitForTimeout(300);
+            textCasePage.waitForConversion();
 
-            String output = page.locator("textarea").nth(1).inputValue();
+            String output = textCasePage.getOutput();
             assertEquals("Hello World Test", output);
         }
 
@@ -103,13 +106,13 @@ public class TextCaseConverterTest {
         void shouldConvertToCamelCase() {
             String input = "hello world test";
 
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^camelCase$")).click();
-            page.locator("textarea").first().fill(input);
+            textCasePage.clickCamelCase();
+            textCasePage.fillInput(input);
 
             // Auto-converts, wait for processing
-            page.waitForTimeout(300);
+            textCasePage.waitForConversion();
 
-            String output = page.locator("textarea").nth(1).inputValue();
+            String output = textCasePage.getOutput();
             assertEquals("helloWorldTest", output);
         }
 
@@ -117,13 +120,13 @@ public class TextCaseConverterTest {
         void shouldConvertToPascalCase() {
             String input = "hello world test";
 
-            page.locator("button:has-text('PascalCase')").click();
-            page.locator("textarea").first().fill(input);
+            textCasePage.clickPascalCase();
+            textCasePage.fillInput(input);
 
             // Auto-converts, wait for processing
-            page.waitForTimeout(300);
+            textCasePage.waitForConversion();
 
-            String output = page.locator("textarea").nth(1).inputValue();
+            String output = textCasePage.getOutput();
             assertEquals("HelloWorldTest", output);
         }
 
@@ -131,13 +134,13 @@ public class TextCaseConverterTest {
         void shouldConvertToSnakeCase() {
             String input = "hello world test";
 
-            page.locator("button:has-text('snake_case')").click();
-            page.locator("textarea").first().fill(input);
+            textCasePage.clickSnakeCase();
+            textCasePage.fillInput(input);
 
             // Auto-converts, wait for processing
-            page.waitForTimeout(300);
+            textCasePage.waitForConversion();
 
-            String output = page.locator("textarea").nth(1).inputValue();
+            String output = textCasePage.getOutput();
             assertEquals("hello_world_test", output);
         }
 
@@ -145,13 +148,13 @@ public class TextCaseConverterTest {
         void shouldConvertToKebabCase() {
             String input = "hello world test";
 
-            page.locator("button:has-text('kebab-case')").click();
-            page.locator("textarea").first().fill(input);
+            textCasePage.clickKebabCase();
+            textCasePage.fillInput(input);
 
             // Auto-converts, wait for processing
-            page.waitForTimeout(300);
+            textCasePage.waitForConversion();
 
-            String output = page.locator("textarea").nth(1).inputValue();
+            String output = textCasePage.getOutput();
             assertEquals("hello-world-test", output);
         }
 
@@ -159,13 +162,13 @@ public class TextCaseConverterTest {
         void shouldConvertToConstantCase() {
             String input = "hello world test";
 
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^CONSTANT_CASE$")).click();
-            page.locator("textarea").first().fill(input);
+            textCasePage.clickConstantCase();
+            textCasePage.fillInput(input);
 
             // Auto-converts, wait for processing
-            page.waitForTimeout(300);
+            textCasePage.waitForConversion();
 
-            String output = page.locator("textarea").nth(1).inputValue();
+            String output = textCasePage.getOutput();
             assertEquals("HELLO_WORLD_TEST", output);
         }
     }
@@ -176,46 +179,37 @@ public class TextCaseConverterTest {
         void shouldSwapInputAndOutput() {
             String input = "hello world";
 
-            page.locator("button:has-text('UPPERCASE')").click();
-            page.locator("textarea").first().fill(input);
+            textCasePage.clickUppercase();
+            textCasePage.fillInput(input);
 
             // Auto-converts, wait for processing
-            page.waitForTimeout(300);
+            textCasePage.waitForConversion();
 
-            Locator swapButton = page.locator("button:has-text('Swap')");
-            if (swapButton.isVisible()) {
-                swapButton.click();
+            textCasePage.clickSwap();
 
-                String newInput = page.locator("textarea").first().inputValue();
-                assertEquals("HELLO WORLD", newInput);
-            }
+            String newInput = textCasePage.getInput();
+            assertEquals("HELLO WORLD", newInput);
         }
 
         @Test
         void shouldCopyOutputToClipboard() {
             context.grantPermissions(java.util.Arrays.asList("clipboard-read", "clipboard-write"));
 
-            page.locator("button:has-text('UPPERCASE')").click();
-            page.locator("textarea").first().fill("test");
+            textCasePage.clickUppercase();
+            textCasePage.fillInput("test");
 
             // Auto-converts, wait for processing
-            page.waitForTimeout(300);
+            textCasePage.waitForConversion();
 
-            Locator copyButton = page.locator("button:has-text('Copy')");
-            if (copyButton.isVisible()) {
-                copyButton.click();
-                assertTrue(page.locator(".text-green-400").or(page.locator("text=/copied/i"))
-                    .isVisible(new Locator.IsVisibleOptions().setTimeout(2000)));
-            }
+            textCasePage.clickCopy();
+            assertTrue(textCasePage.isSuccessIndicatorVisible());
         }
 
         @Test
         void shouldLoadSampleText() {
-            Locator sampleButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)sample"));
-
-            if (sampleButton.count() > 0) {
-                sampleButton.first().click();
-                String input = page.locator("textarea").first().inputValue();
+            if (textCasePage.isSampleButtonVisible()) {
+                textCasePage.clickSample();
+                String input = textCasePage.getInput();
                 assertTrue(input.length() > 0);
             } else {
                 // Skip test if sample button doesn't exist
@@ -225,13 +219,12 @@ public class TextCaseConverterTest {
 
         @Test
         void shouldDownloadResult() {
-            page.locator("textarea").first().fill("test");
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^UPPERCASE$")).click();
+            textCasePage.fillInput("test");
+            textCasePage.clickUppercase();
 
-            Locator downloadButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)download"));
-            if (downloadButton.count() > 0) {
+            if (textCasePage.isDownloadButtonVisible()) {
                 Download download = page.waitForDownload(() -> {
-                    downloadButton.first().click();
+                    textCasePage.clickDownload();
                 });
                 assertTrue(download.suggestedFilename().contains(".txt"));
             } else {
@@ -245,10 +238,10 @@ public class TextCaseConverterTest {
     class Statistics {
         @Test
         void shouldShowCharacterAndWordCounts() {
-            page.locator("textarea").first().fill("hello world test");
+            textCasePage.fillInput("hello world test");
 
-            assertTrue(page.locator("text=/characters/i").first().isVisible());
-            assertTrue(page.locator("text=/words/i").first().isVisible());
+            assertTrue(textCasePage.isCharactersLabelVisible());
+            assertTrue(textCasePage.isWordsLabelVisible());
         }
     }
 
@@ -256,9 +249,9 @@ public class TextCaseConverterTest {
     class ErrorHandling {
         @Test
         void shouldHandleEmptyInput() {
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^UPPERCASE$")).click();
+            textCasePage.clickUppercase();
 
-            String output = page.locator("textarea").nth(1).inputValue();
+            String output = textCasePage.getOutput();
             assertEquals("", output);
         }
     }
@@ -269,16 +262,16 @@ public class TextCaseConverterTest {
         void shouldBeResponsiveOnMobile() {
             page.setViewportSize(375, 667);
 
-            assertTrue(page.locator("h1").isVisible());
-            assertTrue(page.locator("textarea").first().isVisible());
+            assertTrue(textCasePage.isTitleVisible());
+            assertTrue(textCasePage.isInputTextareaVisible());
 
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^UPPERCASE$")).click();
-            page.locator("textarea").first().fill("mobile test");
+            textCasePage.clickUppercase();
+            textCasePage.fillInput("mobile test");
 
             // Auto-converts, wait for processing
-            page.waitForTimeout(300);
+            textCasePage.waitForConversion();
 
-            String output = page.locator("textarea").nth(1).inputValue();
+            String output = textCasePage.getOutput();
             assertEquals("MOBILE TEST", output);
         }
     }
@@ -287,15 +280,14 @@ public class TextCaseConverterTest {
     class History {
         @Test
         void shouldMaintainConversionHistory() {
-            page.locator("textarea").first().fill("test1");
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^UPPERCASE$")).click();
+            textCasePage.fillInput("test1");
+            textCasePage.clickUppercase();
 
-            page.locator("textarea").first().fill("test2");
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^lowercase$")).click();
+            textCasePage.fillInput("test2");
+            textCasePage.clickLowercase();
 
-            Locator historySection = page.locator("text=/Recent|History/i");
-            if (historySection.count() > 0) {
-                assertTrue(historySection.first().isVisible());
+            if (textCasePage.isHistorySectionVisible()) {
+                assertTrue(textCasePage.isHistorySectionVisible());
             } else {
                 // Skip test if history section doesn't exist
                 Assumptions.assumeTrue(false);

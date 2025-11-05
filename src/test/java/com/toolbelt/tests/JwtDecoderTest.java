@@ -1,6 +1,7 @@
 package com.toolbelt.tests;
 
 import com.microsoft.playwright.*;
+import com.toolbelt.pages.JwtDecoderPage;
 import org.junit.jupiter.api.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -10,6 +11,7 @@ public class JwtDecoderTest {
     private static Browser browser;
     private BrowserContext context;
     private Page page;
+    private JwtDecoderPage jwtPage;
 
     // Sample JWTs for testing
     private static final String VALID_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMiwiZXhwIjoxOTUxNjIzOTAyMn0.4Adcj3UFYzPUVaVF43FmMab6RlaQD8A9V8wFzzht-KQ";
@@ -36,6 +38,7 @@ public class JwtDecoderTest {
         context = browser.newContext(new Browser.NewContextOptions().setBaseURL("https://toolbelt.site"));
         page = context.newPage();
         page.navigate("/jwt-decoder");
+        jwtPage = new JwtDecoderPage(page);
     }
 
     @AfterEach
@@ -48,22 +51,22 @@ public class JwtDecoderTest {
     @Test
     void shouldLoadTheJwtDecoderPageCorrectly() {
         // Check page title
-        assertNotNull(page.locator("h1").textContent());
-        assertTrue(page.locator("h1").textContent().contains("JWT Decoder"));
+        assertNotNull(jwtPage.getTitleText());
+        assertTrue(jwtPage.getTitleText().contains("JWT Decoder"));
 
         // Check description
-        assertTrue(page.locator("text=/Decode and verify JSON Web Tokens/i").isVisible());
+        assertTrue(jwtPage.isDescriptionVisible());
 
         // Check input area
-        assertTrue(page.locator("textarea[placeholder*='JWT token']").isVisible());
+        assertTrue(jwtPage.isTokenTextareaVisible());
 
         // Check decode button
-        assertTrue(page.locator("button:has-text('Decode Token')").isVisible());
+        assertTrue(jwtPage.isDecodeButtonVisible());
     }
 
     @Test
     void shouldNavigateBackToHomepage() {
-        page.click("text=/Back to Tools/i");
+        jwtPage.clickBackToTools();
         assertTrue(page.url().endsWith("/"));
     }
 
@@ -71,78 +74,72 @@ public class JwtDecoderTest {
     class DecodingFeatures {
         @Test
         void shouldDecodeValidJwtToken() {
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(VALID_JWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(VALID_JWT);
+            jwtPage.clickDecode();
 
             // Check header section
-            assertTrue(page.locator("text=/Header/i").isVisible());
-            String headerContent = page.locator("pre").first().textContent();
+            assertTrue(jwtPage.isHeaderSectionVisible());
+            String headerContent = jwtPage.getHeaderContent();
             assertTrue(headerContent.contains("\"alg\": \"HS256\""));
             assertTrue(headerContent.contains("\"typ\": \"JWT\""));
 
             // Check payload section
-            assertTrue(page.locator("text=/Payload/i").isVisible());
-            String payloadContent = page.locator("pre").nth(1).textContent();
+            assertTrue(jwtPage.isPayloadSectionVisible());
+            String payloadContent = jwtPage.getPayloadContent();
             assertTrue(payloadContent.contains("\"name\": \"John Doe\""));
             assertTrue(payloadContent.contains("\"admin\": true"));
         }
 
         @Test
         void shouldDisplayTokenInformation() {
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(VALID_JWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(VALID_JWT);
+            jwtPage.clickDecode();
 
             // Check token info section
-            assertTrue(page.locator("text=/Token Information/i").isVisible());
-            assertTrue(page.locator("text=/Algorithm:/i").isVisible());
-            assertTrue(page.locator("text=/Type:/i").isVisible());
-            assertTrue(page.locator("text=/Issued At:/i").isVisible());
-            assertTrue(page.locator("text=/Expires At:/i").isVisible());
+            assertTrue(jwtPage.isTokenInfoSectionVisible());
+            assertTrue(jwtPage.isAlgorithmLabelVisible());
+            assertTrue(jwtPage.isTypeLabelVisible());
+            assertTrue(jwtPage.isIssuedAtLabelVisible());
+            assertTrue(jwtPage.isExpiresAtLabelVisible());
         }
 
         @Test
         void shouldShowSignatureSection() {
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(VALID_JWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(VALID_JWT);
+            jwtPage.clickDecode();
 
             // Check signature section
-            assertTrue(page.locator("text=/Signature Verification/i").isVisible());
-            assertTrue(page.locator("text=/Signature:/i").isVisible());
-            assertTrue(page.locator("input[placeholder*='secret key']").isVisible());
+            assertTrue(jwtPage.isSignatureSectionVisible());
+            assertTrue(jwtPage.isSignatureLabelVisible());
+            assertTrue(jwtPage.isSecretInputVisible());
         }
 
         @Test
         void shouldHandleExpiredToken() {
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(EXPIRED_JWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(EXPIRED_JWT);
+            jwtPage.clickDecode();
 
             // Should show expired status
-            assertTrue(page.locator("text=/Expired/i").isVisible());
+            assertTrue(jwtPage.isExpiredStatusVisible());
         }
 
         @Test
         void shouldShowErrorForInvalidJwtFormat() {
             String invalidJWT = "not.a.valid.jwt";
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(invalidJWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(invalidJWT);
+            jwtPage.clickDecode();
 
             // Should show error message
-            assertTrue(page.locator("text=/Invalid/i").isVisible());
+            assertTrue(jwtPage.isInvalidMessageVisible());
         }
 
         @Test
         void shouldShowErrorForMalformedJwt() {
             String malformedJWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalid_payload.signature";
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(malformedJWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(malformedJWT);
+            jwtPage.clickDecode();
 
-            assertTrue(page.locator("text=/Invalid base64/i").isVisible());
+            assertTrue(jwtPage.isInvalidBase64MessageVisible());
         }
     }
 
@@ -150,12 +147,11 @@ public class JwtDecoderTest {
     class TokenClaims {
         @Test
         void shouldDisplayStandardClaims() {
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(VALID_JWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(VALID_JWT);
+            jwtPage.clickDecode();
 
             // Check for standard claims in token info
-            Locator tokenInfo = page.locator("text=/Token Information/i").locator("..");
+            Locator tokenInfo = jwtPage.getTokenInfoSection();
             assertTrue(tokenInfo.textContent().contains("Subject"));
             assertTrue(tokenInfo.textContent().contains("Issuer"));
             assertTrue(tokenInfo.textContent().contains("Audience"));
@@ -163,11 +159,10 @@ public class JwtDecoderTest {
 
         @Test
         void shouldDisplayCustomClaimsInPayload() {
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(VALID_JWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(VALID_JWT);
+            jwtPage.clickDecode();
 
-            String payloadContent = page.locator("pre").nth(1).textContent();
+            String payloadContent = jwtPage.getPayloadContent();
             assertTrue(payloadContent.contains("\"name\""));
             assertTrue(payloadContent.contains("\"admin\""));
         }
@@ -177,10 +172,9 @@ public class JwtDecoderTest {
     class UIControls {
         @Test
         void shouldLoadSampleJwt() {
-            page.click("button:has-text('Use Sample')");
+            jwtPage.clickUseSample();
 
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            String value = tokenInput.inputValue();
+            String value = jwtPage.getTokenInput();
 
             assertTrue(value.contains("eyJ"));
             assertEquals(3, value.split("\\.").length);
@@ -191,12 +185,11 @@ public class JwtDecoderTest {
             // Grant clipboard permissions
             context.grantPermissions(java.util.Arrays.asList("clipboard-read", "clipboard-write"));
 
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(VALID_JWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(VALID_JWT);
+            jwtPage.clickDecode();
 
             // Click copy button for header
-            page.click("button[title='Copy header']");
+            jwtPage.clickCopyHeader();
 
             // Check for success indicator
             assertTrue(page.locator(".text-green-400").first().isVisible());
@@ -207,12 +200,11 @@ public class JwtDecoderTest {
             // Grant clipboard permissions
             context.grantPermissions(java.util.Arrays.asList("clipboard-read", "clipboard-write"));
 
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(VALID_JWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(VALID_JWT);
+            jwtPage.clickDecode();
 
             // Click copy button for payload
-            page.click("button[title='Copy payload']");
+            jwtPage.clickCopyPayload();
 
             // Check for success indicator
             assertTrue(page.locator(".text-green-400").nth(1).isVisible());
@@ -223,38 +215,35 @@ public class JwtDecoderTest {
     class SignatureVerification {
         @Test
         void shouldShowVerifySignatureButton() {
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(VALID_JWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(VALID_JWT);
+            jwtPage.clickDecode();
 
-            assertTrue(page.locator("button:has-text('Verify Signature')").isVisible());
+            assertTrue(jwtPage.isVerifySignatureButtonVisible());
         }
 
         @Test
         void shouldRequireSecretForVerification() {
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(VALID_JWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(VALID_JWT);
+            jwtPage.clickDecode();
 
             // Try to verify without secret
-            page.click("button:has-text('Verify Signature')");
+            jwtPage.clickVerifySignature();
 
             // Should show error about missing secret
-            assertTrue(page.locator("text=/provide a secret/i").isVisible());
+            assertTrue(jwtPage.isProvideSecretMessageVisible());
         }
 
         @Test
         void shouldVerifySignatureWithSecret() {
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(VALID_JWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(VALID_JWT);
+            jwtPage.clickDecode();
 
             // Enter secret
-            page.fill("input[placeholder*='secret key']", "test-secret");
-            page.click("button:has-text('Verify Signature')");
+            jwtPage.fillSecret("test-secret");
+            jwtPage.clickVerifySignature();
 
             // Should show verification result
-            assertTrue(page.locator("text=/Valid Signature|Invalid Signature/i").isVisible());
+            assertTrue(jwtPage.isValidOrInvalidSignatureVisible());
         }
     }
 
@@ -262,13 +251,12 @@ public class JwtDecoderTest {
     class KeyboardShortcuts {
         @Test
         void shouldDecodeOnCtrlEnter() {
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(VALID_JWT);
-            tokenInput.press("Control+Enter");
+            jwtPage.fillToken(VALID_JWT);
+            jwtPage.pressDecodeShortcut();
 
             // Check that decoding happened
-            assertTrue(page.locator("text=/Header/i").isVisible());
-            assertTrue(page.locator("text=/Payload/i").isVisible());
+            assertTrue(jwtPage.isHeaderSectionVisible());
+            assertTrue(jwtPage.isPayloadSectionVisible());
         }
     }
 
@@ -276,28 +264,26 @@ public class JwtDecoderTest {
     class ErrorHandling {
         @Test
         void shouldHandleEmptyInput() {
-            page.click("button:has-text('Decode Token')");
-            assertTrue(page.locator("text=/Invalid JWT format/i").isVisible());
+            jwtPage.clickDecode();
+            assertTrue(jwtPage.isInvalidFormatMessageVisible());
         }
 
         @Test
         void shouldHandleJwtWithOnlyTwoParts() {
             String invalidJWT = "part1.part2";
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(invalidJWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(invalidJWT);
+            jwtPage.clickDecode();
 
-            assertTrue(page.locator("text=/should have 3 parts/i").isVisible());
+            assertTrue(jwtPage.isThreePartsMessageVisible());
         }
 
         @Test
         void shouldHandleJwtWithInvalidBase64() {
             String invalidBase64JWT = "invalid!@#$.invalid!@#$.invalid!@#$";
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(invalidBase64JWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(invalidBase64JWT);
+            jwtPage.clickDecode();
 
-            assertTrue(page.locator("text=/Invalid/i").isVisible());
+            assertTrue(jwtPage.isInvalidMessageVisible());
         }
     }
 
@@ -306,22 +292,20 @@ public class JwtDecoderTest {
         @Test
         void shouldHandleJwtWithMinimalClaims() {
             String minimalJWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.Vg30C57s3l90JNap_VgMhKZjfc-p0fVP6jUxc8S5MqM";
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(minimalJWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(minimalJWT);
+            jwtPage.clickDecode();
 
-            String payloadContent = page.locator("pre").nth(1).textContent();
+            String payloadContent = jwtPage.getPayloadContent();
             assertTrue(payloadContent.contains("\"sub\": \"1234567890\""));
         }
 
         @Test
         void shouldHandleJwtWithNestedObjects() {
             String nestedJWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7Im5hbWUiOiJKb2huIiwicm9sZXMiOlsiYWRtaW4iLCJ1c2VyIl19fQ.k5GwPcZvGe2BE-Lm9Y3neqJ3lPiT3RnLSw3AOFoVn_4";
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(nestedJWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(nestedJWT);
+            jwtPage.clickDecode();
 
-            String payloadContent = page.locator("pre").nth(1).textContent();
+            String payloadContent = jwtPage.getPayloadContent();
             assertTrue(payloadContent.contains("\"user\""));
             assertTrue(payloadContent.contains("\"roles\""));
         }
@@ -329,11 +313,10 @@ public class JwtDecoderTest {
         @Test
         void shouldHandleJwtWithArrayClaims() {
             String arrayJWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlcyI6WyJhZG1pbiIsInVzZXIiLCJlZGl0b3IiXX0.bKy6otoNwRr2J4Y3zo9eXkQvK0rTmSU5BbQJDHmDL1A";
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(arrayJWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(arrayJWT);
+            jwtPage.clickDecode();
 
-            String payloadContent = page.locator("pre").nth(1).textContent();
+            String payloadContent = jwtPage.getPayloadContent();
             assertTrue(payloadContent.contains("[\"admin\", \"user\", \"editor\"]"));
         }
     }
@@ -342,32 +325,29 @@ public class JwtDecoderTest {
     class TimeBasedClaims {
         @Test
         void shouldDisplayIssuedAtTime() {
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(VALID_JWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(VALID_JWT);
+            jwtPage.clickDecode();
 
-            String issuedAtText = page.locator("text=/Issued At:/i").locator("..").textContent();
+            String issuedAtText = jwtPage.getIssuedAtText();
             assertTrue(issuedAtText.matches(".*\\d{1,2}/\\d{1,2}/\\d{4}.*"));
         }
 
         @Test
         void shouldDisplayExpirationTime() {
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(VALID_JWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(VALID_JWT);
+            jwtPage.clickDecode();
 
-            String expiresAtText = page.locator("text=/Expires At:/i").locator("..").textContent();
+            String expiresAtText = jwtPage.getExpiresAtText();
             assertTrue(expiresAtText.matches(".*\\d{1,2}/\\d{1,2}/\\d{4}.*"));
         }
 
         @Test
         void shouldCalculateTimeUntilExpiration() {
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(VALID_JWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(VALID_JWT);
+            jwtPage.clickDecode();
 
             // Should show expiration status
-            assertTrue(page.locator("text=/Expires in|Expired/i").isVisible());
+            assertTrue(jwtPage.isExpiresStatusVisible());
         }
     }
 
@@ -377,26 +357,24 @@ public class JwtDecoderTest {
         void shouldBeResponsiveOnMobile() {
             page.setViewportSize(375, 667);
 
-            assertTrue(page.locator("h1").isVisible());
+            assertTrue(jwtPage.isTitleVisible());
             assertTrue(page.locator("textarea").first().isVisible());
-            assertTrue(page.locator("button:has-text('Decode Token')").isVisible());
+            assertTrue(jwtPage.isDecodeButtonVisible());
 
             // Test decoding on mobile
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(VALID_JWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(VALID_JWT);
+            jwtPage.clickDecode();
 
-            assertTrue(page.locator("text=/Header/i").isVisible());
-            assertTrue(page.locator("text=/Payload/i").isVisible());
+            assertTrue(jwtPage.isHeaderSectionVisible());
+            assertTrue(jwtPage.isPayloadSectionVisible());
         }
 
         @Test
         void shouldStackSectionsOnMobile() {
             page.setViewportSize(375, 667);
 
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            tokenInput.fill(VALID_JWT);
-            page.click("button:has-text('Decode Token')");
+            jwtPage.fillToken(VALID_JWT);
+            jwtPage.clickDecode();
 
             // Check that header and payload sections are stacked
             BoundingBox headerBox = page.locator("text=/Header/i").locator("..").boundingBox();
@@ -410,11 +388,10 @@ public class JwtDecoderTest {
     class Accessibility {
         @Test
         void shouldHaveProperLabels() {
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            assertTrue(tokenInput.isVisible());
+            assertTrue(jwtPage.isTokenTextareaVisible());
 
             // Check for label
-            assertTrue(page.locator("text=/JWT Token/i").isVisible());
+            assertTrue(jwtPage.isJwtTokenLabelVisible());
         }
 
         @Test
@@ -424,8 +401,7 @@ public class JwtDecoderTest {
             page.keyboard().press("Tab");
             page.keyboard().press("Enter");
 
-            Locator tokenInput = page.locator("textarea[placeholder*='JWT token']");
-            String value = tokenInput.inputValue();
+            String value = jwtPage.getTokenInput();
             assertTrue(value.contains("eyJ"));
         }
     }

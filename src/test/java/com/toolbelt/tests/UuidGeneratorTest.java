@@ -1,6 +1,7 @@
 package com.toolbelt.tests;
 
 import com.microsoft.playwright.*;
+import com.toolbelt.pages.UuidGeneratorPage;
 import org.junit.jupiter.api.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -10,6 +11,7 @@ public class UuidGeneratorTest {
     private static Browser browser;
     private BrowserContext context;
     private Page page;
+    private UuidGeneratorPage uuidPage;
 
     @BeforeAll
     static void launchBrowser() {
@@ -32,6 +34,7 @@ public class UuidGeneratorTest {
         context = browser.newContext(new Browser.NewContextOptions().setBaseURL("https://toolbelt.site"));
         page = context.newPage();
         page.navigate("/uuid");
+        uuidPage = new UuidGeneratorPage(page);
     }
 
     @AfterEach
@@ -43,9 +46,9 @@ public class UuidGeneratorTest {
 
     @Test
     void shouldLoadTheUuidGeneratorPageCorrectly() {
-        assertTrue(page.locator("h1").textContent().contains("UUID Generator"));
-        assertTrue(page.locator("text=/Generate universally unique identifiers/i").isVisible());
-        assertTrue(page.locator("button:has-text('Generate New')").isVisible());
+        assertTrue(uuidPage.getTitleText().contains("UUID Generator"));
+        assertTrue(uuidPage.isDescriptionVisible());
+        assertTrue(uuidPage.isGenerateNewButtonVisible());
     }
 
     @Test
@@ -59,9 +62,9 @@ public class UuidGeneratorTest {
         @Test
         void shouldGenerateUuidV4ByDefault() {
             // UUIDs should be generated on page load
-            assertTrue(page.locator("code").or(page.locator("[class*='uuid']")).isVisible());
+            assertTrue(uuidPage.isUuidVisible());
 
-            String uuid = page.locator("code").or(page.locator("[class*='uuid']")).first().textContent();
+            String uuid = uuidPage.getFirstUuid();
 
             // UUID v4 format: 8-4-4-4-12 characters
             assertTrue(uuid.matches("^[\\da-f]{8}-[\\da-f]{4}-4[\\da-f]{3}-[\\da-f]{4}-[\\da-f]{12}$(?i)"));
@@ -69,29 +72,29 @@ public class UuidGeneratorTest {
 
         @Test
         void shouldGenerateUuidV1() {
-            page.selectOption("select", "v1");
-            page.locator("button:has-text('Generate New')").first().click();
+            uuidPage.selectVersion("v1");
+            uuidPage.clickGenerateNew();
 
-            String uuid = page.locator("code").or(page.locator("[class*='uuid']")).first().textContent();
+            String uuid = uuidPage.getFirstUuid();
             assertTrue(uuid.matches("^[\\da-f]{8}-[\\da-f]{4}-1[\\da-f]{3}-[\\da-f]{4}-[\\da-f]{12}$(?i)"));
         }
 
         @Test
         void shouldGenerateNilUuid() {
-            page.selectOption("select", "nil");
-            page.locator("button:has-text('Generate New')").first().click();
+            uuidPage.selectVersion("nil");
+            uuidPage.clickGenerateNew();
 
-            String uuid = page.locator("code").or(page.locator("[class*='uuid']")).first().textContent();
+            String uuid = uuidPage.getFirstUuid();
             assertEquals("00000000-0000-0000-0000-000000000000", uuid.replaceAll("\\s", ""));
         }
 
         @Test
         void shouldGenerateMultipleUuids() {
             // Set count to 5
-            page.fill("input[type='number']", "5");
-            page.locator("button:has-text('Generate New')").first().click();
+            uuidPage.fillCount("5");
+            uuidPage.clickGenerateNew();
 
-            int uuids = page.locator("code").or(page.locator("[class*='uuid']")).count();
+            int uuids = uuidPage.getUuidCount();
             assertTrue(uuids >= 5);
         }
     }
@@ -100,39 +103,33 @@ public class UuidGeneratorTest {
     class UuidOptions {
         @Test
         void shouldGenerateUppercaseUuids() {
-            Locator uppercaseCheckbox = page.locator("text=/uppercase/i");
-            int count = uppercaseCheckbox.count();
-            if (count > 0) {
-                uppercaseCheckbox.first().click();
-                page.locator("button:has-text('Generate New')").first().click();
+            if (uuidPage.isUppercaseCheckboxVisible()) {
+                uuidPage.clickUppercase();
+                uuidPage.clickGenerateNew();
 
-                String uuid = page.locator("code").or(page.locator("[class*='uuid']")).first().textContent();
+                String uuid = uuidPage.getFirstUuid();
                 assertTrue(uuid.matches(".*[A-F0-9].*"));
             }
         }
 
         @Test
         void shouldGenerateUuidsWithoutHyphens() {
-            Locator hyphensCheckbox = page.locator("text=/hyphens/i");
-            int count = hyphensCheckbox.count();
-            if (count > 0) {
-                hyphensCheckbox.first().click();
-                page.locator("button:has-text('Generate New')").first().click();
+            if (uuidPage.isHyphensCheckboxVisible()) {
+                uuidPage.clickHyphens();
+                uuidPage.clickGenerateNew();
 
-                String uuid = page.locator("code").or(page.locator("[class*='uuid']")).first().textContent();
+                String uuid = uuidPage.getFirstUuid();
                 assertFalse(uuid.contains("-"));
             }
         }
 
         @Test
         void shouldGenerateUuidsWithBrackets() {
-            Locator bracketsCheckbox = page.locator("text=/brackets/i");
-            int count = bracketsCheckbox.count();
-            if (count > 0) {
-                bracketsCheckbox.first().click();
-                page.locator("button:has-text('Generate New')").first().click();
+            if (uuidPage.isBracketsCheckboxVisible()) {
+                uuidPage.clickBrackets();
+                uuidPage.clickGenerateNew();
 
-                String uuid = page.locator("code").or(page.locator("[class*='uuid']")).first().textContent();
+                String uuid = uuidPage.getFirstUuid();
                 assertTrue(uuid.contains("{"));
                 assertTrue(uuid.contains("}"));
             }
@@ -145,38 +142,28 @@ public class UuidGeneratorTest {
         void shouldCopyUuidToClipboard() {
             context.grantPermissions(java.util.Arrays.asList("clipboard-read", "clipboard-write"));
 
-            Locator copyButton = page.locator("button[title*='Copy']").or(page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Copy$")));
-            int count = copyButton.count();
-            if (count > 0) {
-                copyButton.first().click();
-                assertTrue(page.locator(".text-green-400").or(page.locator("text=/copied/i"))
-                    .isVisible(new Locator.IsVisibleOptions().setTimeout(2000)));
-            }
+            uuidPage.clickCopy();
+            assertTrue(uuidPage.isSuccessIndicatorVisible());
         }
 
         @Test
         void shouldCopyAllUuids() {
             context.grantPermissions(java.util.Arrays.asList("clipboard-read", "clipboard-write"));
 
-            page.fill("input[type='number']", "3");
-            page.locator("button:has-text('Generate New')").first().click();
+            uuidPage.fillCount("3");
+            uuidPage.clickGenerateNew();
 
-            Locator copyAllButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Copy All$"));
-            int count = copyAllButton.count();
-            if (count > 0) {
-                copyAllButton.first().click();
-                assertTrue(page.locator(".text-green-400").or(page.locator("text=/copied/i"))
-                    .isVisible(new Locator.IsVisibleOptions().setTimeout(2000)));
+            if (uuidPage.isCopyAllButtonVisible()) {
+                uuidPage.clickCopyAll();
+                assertTrue(uuidPage.isSuccessIndicatorVisible());
             }
         }
 
         @Test
         void shouldDownloadUuids() {
-            Locator downloadButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Download$"));
-            int count = downloadButton.count();
-            if (count > 0) {
+            if (uuidPage.isDownloadButtonVisible()) {
                 Download download = page.waitForDownload(() -> {
-                    downloadButton.first().click();
+                    uuidPage.clickDownload();
                 });
                 assertTrue(download.suggestedFilename().contains("uuid"));
             }
@@ -187,10 +174,10 @@ public class UuidGeneratorTest {
     class Statistics {
         @Test
         void shouldShowUuidCount() {
-            page.fill("input[type='number']", "10");
-            page.locator("button:has-text('Generate New')").first().click();
+            uuidPage.fillCount("10");
+            uuidPage.clickGenerateNew();
 
-            assertTrue(page.locator("text=/10.*UUID/i").isVisible());
+            assertTrue(uuidPage.isUuidCountTextVisible());
         }
     }
 
@@ -200,10 +187,10 @@ public class UuidGeneratorTest {
         void shouldBeResponsiveOnMobile() {
             page.setViewportSize(375, 667);
 
-            assertTrue(page.locator("h1").isVisible());
-            page.locator("button:has-text('Generate New')").first().click();
+            assertTrue(uuidPage.isTitleVisible());
+            uuidPage.clickGenerateNew();
 
-            assertTrue(page.locator("code").or(page.locator("[class*='uuid']")).isVisible());
+            assertTrue(uuidPage.isUuidVisible());
         }
     }
 }

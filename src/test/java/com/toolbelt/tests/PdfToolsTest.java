@@ -1,6 +1,7 @@
 package com.toolbelt.tests;
 
 import com.microsoft.playwright.*;
+import com.toolbelt.pages.PdfToolsPage;
 import org.junit.jupiter.api.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -10,6 +11,7 @@ public class PdfToolsTest {
     private static Browser browser;
     private BrowserContext context;
     private Page page;
+    private PdfToolsPage pdfPage;
 
     @BeforeAll
     static void launchBrowser() {
@@ -32,6 +34,7 @@ public class PdfToolsTest {
         context = browser.newContext(new Browser.NewContextOptions().setBaseURL("https://toolbelt.site"));
         page = context.newPage();
         page.navigate("/pdf-tools");
+        pdfPage = new PdfToolsPage(page);
     }
 
     @AfterEach
@@ -43,14 +46,14 @@ public class PdfToolsTest {
 
     @Test
     void shouldLoadThePdfToolsPageCorrectly() {
-        assertTrue(page.locator("h1").textContent().contains("PDF Tools Suite"));
-        assertTrue(page.locator("text=/8 powerful PDF tools/i").first().isVisible());
-        assertTrue(page.locator("h3").filter(new Locator.FilterOptions().setHasText("(?i)Complete Privacy")).isVisible());
+        assertTrue(pdfPage.getTitleText().contains("PDF Tools Suite"));
+        assertTrue(pdfPage.isToolsDescriptionVisible());
+        assertTrue(pdfPage.isPrivacyHeadingVisible());
     }
 
     @Test
     void shouldNavigateBackToHomepage() {
-        page.click("a[href=\"/\"]");
+        pdfPage.navigateToHome();
         assertTrue(page.url().endsWith("/"));
     }
 
@@ -58,28 +61,28 @@ public class PdfToolsTest {
     class ToolSelection {
         @Test
         void shouldDisplayAllEightPdfTools() {
-            assertTrue(page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Merge PDFs")).isVisible());
-            assertTrue(page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Split PDF")).isVisible());
-            assertTrue(page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^PDF to Word")).isVisible());
-            assertTrue(page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Word to PDF")).isVisible());
-            assertTrue(page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^PDF to Images")).isVisible());
-            assertTrue(page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Images to PDF")).isVisible());
-            assertTrue(page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Sign PDF")).isVisible());
-            assertTrue(page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Rotate PDF")).isVisible());
+            assertTrue(pdfPage.isMergePdfsButtonVisible());
+            assertTrue(pdfPage.isSplitPdfButtonVisible());
+            assertTrue(pdfPage.isPdfToWordButtonVisible());
+            assertTrue(pdfPage.isWordToPdfButtonVisible());
+            assertTrue(pdfPage.isPdfToImagesButtonVisible());
+            assertTrue(pdfPage.isImagesToPdfButtonVisible());
+            assertTrue(pdfPage.isSignPdfButtonVisible());
+            assertTrue(pdfPage.isRotatePdfButtonVisible());
         }
 
         @Test
         void shouldSwitchBetweenTools() {
             // Click on Split PDF
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Split PDF")).click();
+            pdfPage.clickSplitPdf();
 
             // Verify instructions changed
-            assertTrue(page.locator("text=/Upload a PDF file you want to split/i").isVisible());
+            assertTrue(pdfPage.isUploadSplitTextVisible());
 
             // Click on Rotate
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Rotate PDF")).click();
+            pdfPage.clickRotatePdf();
 
-            assertTrue(page.locator("text=/Upload a PDF file you want to rotate/i").isVisible());
+            assertTrue(pdfPage.isUploadRotateTextVisible());
         }
     }
 
@@ -87,8 +90,8 @@ public class PdfToolsTest {
     class PrivacyNotice {
         @Test
         void shouldDisplayPrivacyInformation() {
-            assertTrue(page.locator("text=/All files are processed in your browser/i").isVisible());
-            assertTrue(page.locator("text=/No uploads to any server/i").isVisible());
+            assertTrue(pdfPage.isPrivacyBrowserTextVisible());
+            assertTrue(pdfPage.isPrivacyNoUploadTextVisible());
         }
     }
 
@@ -96,31 +99,28 @@ public class PdfToolsTest {
     class FileUpload {
         @Test
         void shouldShowDragAndDropArea() {
-            assertTrue(page.locator("text=/Drag & drop files here/i").isVisible());
-            assertTrue(page.locator("text=/Choose Files/i").isVisible());
+            assertTrue(pdfPage.isDragDropTextVisible());
+            assertTrue(pdfPage.isChooseFilesTextVisible());
         }
 
         @Test
         void shouldAcceptPdfFilesForMergeTool() {
             // Merge tool is selected by default
-            Locator fileInput = page.locator("input[type=\"file\"]");
-            assertEquals(".pdf", fileInput.getAttribute("accept"));
+            assertEquals(".pdf", pdfPage.getFileInputAcceptAttribute());
         }
 
         @Test
         void shouldAcceptImagesForImagesToPdfTool() {
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Images to PDF")).click();
+            pdfPage.clickImagesToPdf();
 
-            Locator fileInput = page.locator("input[type=\"file\"]");
-            assertEquals("image/*", fileInput.getAttribute("accept"));
+            assertEquals("image/*", pdfPage.getFileInputAcceptAttribute());
         }
 
         @Test
         void shouldAcceptTextFilesForWordToPdfTool() {
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Word to PDF")).click();
+            pdfPage.clickWordToPdf();
 
-            Locator fileInput = page.locator("input[type=\"file\"]");
-            String accept = fileInput.getAttribute("accept");
+            String accept = pdfPage.getFileInputAcceptAttribute();
             assertTrue(accept.contains(".txt"));
         }
     }
@@ -129,7 +129,7 @@ public class PdfToolsTest {
     class ToolDescriptions {
         @Test
         void shouldShowMergeToolDescription() {
-            assertTrue(page.locator("text=/Combine multiple PDFs into one/i").isVisible());
+            assertTrue(pdfPage.isMergeDescriptionVisible());
         }
     }
 
@@ -137,16 +137,16 @@ public class PdfToolsTest {
     class HowToGuides {
         @Test
         void shouldDisplayInstructionsForMergeTool() {
-            assertTrue(page.locator("text=/How to Use Merge PDFs/i").isVisible());
-            assertTrue(page.locator("text=/Upload 2 or more PDF files/i").isVisible());
+            assertTrue(pdfPage.isHowToMergeVisible());
+            assertTrue(pdfPage.isUploadTwoOrMoreVisible());
         }
 
         @Test
         void shouldUpdateInstructionsWhenSwitchingTools() {
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Split PDF")).click();
+            pdfPage.clickSplitPdf();
 
-            assertTrue(page.locator("text=/How to Use Split PDF/i").isVisible());
-            assertTrue(page.locator("text=/extract all pages/i").isVisible());
+            assertTrue(pdfPage.isHowToSplitVisible());
+            assertTrue(pdfPage.isExtractAllPagesVisible());
         }
     }
 
@@ -155,19 +155,15 @@ public class PdfToolsTest {
         @Test
         void shouldShowErrorForMergeWithLessThanTwoFiles() {
             // Try to process without files
-            Locator processButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Merge PDFs$"));
-
             // Button should not be visible without files
-            assertFalse(processButton.isVisible());
+            assertFalse(pdfPage.isMergeProcessButtonVisible());
         }
 
         @Test
         void shouldShowErrorMessageWhenDisplayed() {
             // This tests the error display component
-            Locator errorDisplay = page.locator(".bg-red-900\\/20");
-
             // Initially no error
-            assertFalse(errorDisplay.isVisible());
+            assertFalse(pdfPage.isErrorDisplayVisible());
         }
     }
 
@@ -175,11 +171,11 @@ public class PdfToolsTest {
     class FaqSection {
         @Test
         void shouldDisplayFaqSection() {
-            assertTrue(page.locator("text=/Frequently Asked Questions/i").isVisible());
-            assertTrue(page.locator("text=/Is it safe to process confidential PDFs/i").isVisible());
-            assertTrue(page.locator("text=/Is there a file size limit/i").isVisible());
-            assertTrue(page.locator("text=/Do I need to create an account/i").isVisible());
-            assertTrue(page.locator("text=/What browsers are supported/i").isVisible());
+            assertTrue(pdfPage.isFaqSectionVisible());
+            assertTrue(pdfPage.isFaqSafeVisible());
+            assertTrue(pdfPage.isFaqSizeLimitVisible());
+            assertTrue(pdfPage.isFaqAccountVisible());
+            assertTrue(pdfPage.isFaqBrowsersVisible());
         }
     }
 
@@ -189,8 +185,8 @@ public class PdfToolsTest {
         void shouldBeResponsiveOnMobile() {
             page.setViewportSize(375, 667);
 
-            assertTrue(page.locator("h1").isVisible());
-            assertTrue(page.locator("text=/Select PDF Tool/i").isVisible());
+            assertTrue(pdfPage.isTitleVisible());
+            assertTrue(pdfPage.isSelectToolHeadingVisible());
 
             // Tools should be in grid
             Locator tools = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)Merge|Split|Compress"));
@@ -202,10 +198,10 @@ public class PdfToolsTest {
             page.setViewportSize(375, 667);
 
             // Tool buttons should be visible and clickable
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Rotate PDF")).click();
+            pdfPage.clickRotatePdf();
 
             // Check that tool grid is visible
-            assertTrue(page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Rotate PDF")).isVisible());
+            assertTrue(pdfPage.isRotatePdfButtonVisible());
         }
     }
 
@@ -214,13 +210,12 @@ public class PdfToolsTest {
         @Test
         void shouldHaveProperLabels() {
             assertTrue(page.locator("h2").filter(new Locator.FilterOptions().setHasText("(?i)Select PDF Tool")).isVisible());
-            assertTrue(page.locator("h2").filter(new Locator.FilterOptions().setHasText("(?i)Upload")).isVisible());
+            assertTrue(pdfPage.isUploadHeadingVisible());
         }
 
         @Test
         void shouldHaveFileInputAccessible() {
-            Locator fileInput = page.locator("input[type=\"file\"]");
-            assertTrue(fileInput.isAttached());
+            assertTrue(pdfPage.isFileInputAttached());
         }
     }
 
@@ -229,24 +224,21 @@ public class PdfToolsTest {
         @Test
         void shouldClearFilesWhenSwitchingTools() {
             // This tests that tool switching resets state
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Rotate PDF")).click();
+            pdfPage.clickRotatePdf();
 
             // Verify tool is selected
-            Locator rotateButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Rotate PDF"));
-            String classes = rotateButton.getAttribute("class");
+            String classes = pdfPage.getRotateButtonClasses();
             assertTrue(classes.contains("border-green-500") || classes.contains("bg-green"));
         }
 
         @Test
         void shouldShowCorrectFileTypeForEachTool() {
             // Test merge (PDF)
-            Locator fileInput = page.locator("input[type=\"file\"]");
-            assertEquals(".pdf", fileInput.getAttribute("accept"));
+            assertEquals(".pdf", pdfPage.getFileInputAcceptAttribute());
 
             // Test images-to-pdf (images)
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Images to PDF")).click();
-            fileInput = page.locator("input[type=\"file\"]");
-            assertEquals("image/*", fileInput.getAttribute("accept"));
+            pdfPage.clickImagesToPdf();
+            assertEquals("image/*", pdfPage.getFileInputAcceptAttribute());
         }
     }
 
@@ -254,16 +246,15 @@ public class PdfToolsTest {
     class EditorToolUi {
         @Test
         void shouldNotShowEditorUiInitially() {
-            Locator editorTextarea = page.locator("textarea[placeholder*=\"Enter text to add\"]");
-            assertFalse(editorTextarea.isVisible());
+            assertFalse(pdfPage.isEditorTextareaVisible());
         }
 
         @Test
         void shouldShowCorrectUploadMessageForEachTool() {
-            assertTrue(page.locator("text=/minimum 2/i").isVisible());
+            assertTrue(pdfPage.isMinimumTwoTextVisible());
 
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Split PDF")).click();
-            assertTrue(page.locator("text=/Upload.*PDF File$/i").isVisible());
+            pdfPage.clickSplitPdf();
+            assertTrue(pdfPage.isUploadPdfFileTextVisible());
         }
     }
 
@@ -271,10 +262,8 @@ public class PdfToolsTest {
     class SignerToolUi {
         @Test
         void shouldNotShowSignaturePadInitially() {
-            Locator signaturePad = page.locator("canvas");
-
             // Should not be visible before selecting signer tool
-            assertEquals(0, signaturePad.count());
+            assertEquals(0, pdfPage.getSignatureCanvasCount());
         }
     }
 
@@ -282,14 +271,12 @@ public class PdfToolsTest {
     class ResultDisplay {
         @Test
         void shouldNotShowResultSectionInitially() {
-            Locator resultSection = page.locator("text=/Processing Complete/i");
-            assertFalse(resultSection.isVisible());
+            assertFalse(pdfPage.isProcessingCompleteTextVisible());
         }
 
         @Test
         void shouldNotShowProcessButtonWithoutFiles() {
-            Locator processButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Merge PDFs$"));
-            assertFalse(processButton.isVisible());
+            assertFalse(pdfPage.isMergeProcessButtonVisible());
         }
     }
 
@@ -308,8 +295,7 @@ public class PdfToolsTest {
         @Test
         void shouldHaveAnimatedBackground() {
             // Check for gradient background
-            Locator background = page.locator(".bg-gradient-to-br");
-            assertTrue(background.count() > 0);
+            assertTrue(pdfPage.getGradientBackgroundCount() > 0);
         }
     }
 
@@ -317,13 +303,13 @@ public class PdfToolsTest {
     class UploadHints {
         @Test
         void shouldShowMaximumFilesHintForMerge() {
-            assertTrue(page.locator("text=/Maximum 20 PDF files/i").isVisible());
+            assertTrue(pdfPage.isMaximumFilesTextVisible());
         }
 
         @Test
         void shouldShowSupportedFormatsForImagesToPdf() {
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Images to PDF")).click();
-            assertTrue(page.locator("text=/JPG, PNG.*supported/i").isVisible());
+            pdfPage.clickImagesToPdf();
+            assertTrue(pdfPage.isSupportedFormatsTextVisible());
         }
     }
 
@@ -332,72 +318,71 @@ public class PdfToolsTest {
         @Test
         void shouldClearStateWhenSwitchingFromMergeToSplit() {
             // Start with merge tool (default)
-            assertTrue(page.locator("text=/Upload.*PDF Files.*minimum 2/i").isVisible());
+            assertTrue(pdfPage.isUploadPdfFilesMinTwoVisible());
 
             // Switch to split
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Split PDF")).click();
+            pdfPage.clickSplitPdf();
 
             // Verify tool switched
-            assertTrue(page.locator("text=/Upload a PDF file you want to split/i").isVisible());
+            assertTrue(pdfPage.isUploadSplitTextVisible());
         }
 
         @Test
         void shouldClearStateWhenSwitchingFromSplitToRotate() {
             // Switch to split
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Split PDF")).click();
-            assertTrue(page.locator("text=/Upload a PDF file you want to split/i").isVisible());
+            pdfPage.clickSplitPdf();
+            assertTrue(pdfPage.isUploadSplitTextVisible());
 
             // Switch to rotate
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Rotate PDF")).click();
-            assertTrue(page.locator("text=/Upload a PDF file$/i").isVisible());
+            pdfPage.clickRotatePdf();
+            assertTrue(pdfPage.isUploadPdfFileTextVisible());
         }
 
         @Test
         void shouldClearStateWhenSwitchingFromRotateToSplit() {
             // Switch to rotate
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Rotate PDF")).click();
+            pdfPage.clickRotatePdf();
 
             // Switch to split
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Split PDF")).click();
-            assertTrue(page.locator("text=/Upload a PDF file you want to split/i").isVisible());
+            pdfPage.clickSplitPdf();
+            assertTrue(pdfPage.isUploadSplitTextVisible());
         }
 
         @Test
         void shouldClearStateWhenSwitchingFromSplitToPdfToImages() {
             // Switch to split
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Split PDF")).click();
+            pdfPage.clickSplitPdf();
 
             // Switch to PDF to Images
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^PDF to Images")).click();
-            assertTrue(page.locator("text=/Upload a PDF file$/i").first().isVisible());
+            pdfPage.clickPdfToImages();
+            assertTrue(pdfPage.isUploadPdfFileTextVisible());
         }
 
         @Test
         void shouldClearStateWhenSwitchingFromImagesToPdfToSigner() {
             // Switch to images-to-pdf
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Images to PDF")).click();
-            assertTrue(page.locator("text=/JPG, PNG.*supported/i").isVisible());
+            pdfPage.clickImagesToPdf();
+            assertTrue(pdfPage.isSupportedFormatsTextVisible());
 
             // Switch to signer
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Sign PDF")).click();
-            assertTrue(page.locator("text=/Upload a PDF file$/i").first().isVisible());
+            pdfPage.clickSignPdf();
+            assertTrue(pdfPage.isUploadPdfFileTextVisible());
         }
 
         @Test
         void shouldMaintainToolSelectionAfterSwitching() {
             // Switch to multiple tools in sequence
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Word to PDF")).click();
+            pdfPage.clickWordToPdf();
             page.waitForTimeout(100);
 
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Rotate PDF")).click();
+            pdfPage.clickRotatePdf();
             page.waitForTimeout(100);
 
-            page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Split PDF")).click();
+            pdfPage.clickSplitPdf();
             page.waitForTimeout(100);
 
             // Final tool should be selected
-            Locator splitButton = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Split PDF"));
-            String classes = splitButton.getAttribute("class");
+            String classes = page.locator("button").filter(new Locator.FilterOptions().setHasText("(?i)^Split PDF")).getAttribute("class");
             assertTrue(classes.contains("border-purple-500") || classes.contains("bg-purple"));
         }
     }

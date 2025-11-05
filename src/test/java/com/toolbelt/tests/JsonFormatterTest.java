@@ -1,6 +1,7 @@
 package com.toolbelt.tests;
 
 import com.microsoft.playwright.*;
+import com.toolbelt.pages.JsonFormatterPage;
 import org.junit.jupiter.api.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -10,6 +11,7 @@ public class JsonFormatterTest {
     private static Browser browser;
     private BrowserContext context;
     private Page page;
+    private JsonFormatterPage jsonPage;
 
     @BeforeAll
     static void launchBrowser() {
@@ -32,6 +34,7 @@ public class JsonFormatterTest {
         context = browser.newContext(new Browser.NewContextOptions().setBaseURL("https://toolbelt.site"));
         page = context.newPage();
         page.navigate("/json-formatter");
+        jsonPage = new JsonFormatterPage(page);
     }
 
     @AfterEach
@@ -44,24 +47,24 @@ public class JsonFormatterTest {
     @Test
     void shouldLoadTheJsonFormatterPageCorrectly() {
         // Check page title
-        assertNotNull(page.locator("h1").textContent());
-        assertTrue(page.locator("h1").textContent().contains("JSON Formatter"));
+        assertNotNull(jsonPage.getTitleText());
+        assertTrue(jsonPage.getTitleText().contains("JSON Formatter"));
 
         // Check description
-        assertTrue(page.locator("text=/Format, validate, and beautify your JSON data/i").isVisible());
+        assertTrue(jsonPage.isDescriptionVisible());
 
         // Check input and output areas
-        assertTrue(page.locator("textarea[placeholder*='Paste your JSON']").isVisible());
-        assertTrue(page.locator("textarea[placeholder*='Formatted JSON']").isVisible());
+        assertTrue(jsonPage.isInputTextareaVisible());
+        assertTrue(jsonPage.isOutputTextareaVisible());
 
         // Check control buttons
-        assertTrue(page.locator("button:has-text('Format')").isVisible());
-        assertTrue(page.locator("button:has-text('Minify')").isVisible());
+        assertTrue(jsonPage.isFormatButtonVisible());
+        assertTrue(jsonPage.isMinifyButtonVisible());
     }
 
     @Test
     void shouldNavigateBackToHomepage() {
-        page.click("text=/Back to Tools/i");
+        jsonPage.clickBackToTools();
         assertTrue(page.url().endsWith("/"));
     }
 
@@ -70,13 +73,11 @@ public class JsonFormatterTest {
         @Test
         void shouldFormatValidJson() {
             String inputJson = "{\"name\":\"John\",\"age\":30,\"city\":\"New York\"}";
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
 
-            inputArea.fill(inputJson);
-            page.click("button:has-text('Format')");
+            jsonPage.fillInput(inputJson);
+            jsonPage.clickFormat();
 
-            Locator outputArea = page.locator("textarea[placeholder*='Formatted JSON']");
-            String formatted = outputArea.inputValue();
+            String formatted = jsonPage.getOutput();
 
             assertTrue(formatted.contains("{\n"));
             assertTrue(formatted.contains("\"name\": \"John\""));
@@ -86,13 +87,11 @@ public class JsonFormatterTest {
         @Test
         void shouldMinifyJson() {
             String inputJson = "{\n  \"name\": \"John\",\n  \"age\": 30\n}";
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
 
-            inputArea.fill(inputJson);
-            page.click("button:has-text('Minify')");
+            jsonPage.fillInput(inputJson);
+            jsonPage.clickMinify();
 
-            Locator outputArea = page.locator("textarea[placeholder*='Formatted JSON']");
-            String minified = outputArea.inputValue();
+            String minified = jsonPage.getOutput();
 
             assertEquals("{\"name\":\"John\",\"age\":30}", minified);
         }
@@ -100,13 +99,11 @@ public class JsonFormatterTest {
         @Test
         void shouldHandleNestedJson() {
             String nestedJson = "{\"user\":{\"name\":\"John\",\"address\":{\"city\":\"NYC\",\"zip\":\"10001\"}}}";
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
 
-            inputArea.fill(nestedJson);
-            page.click("button:has-text('Format')");
+            jsonPage.fillInput(nestedJson);
+            jsonPage.clickFormat();
 
-            Locator outputArea = page.locator("textarea[placeholder*='Formatted JSON']");
-            String formatted = outputArea.inputValue();
+            String formatted = jsonPage.getOutput();
 
             assertTrue(formatted.contains("\"user\": {"));
             assertTrue(formatted.contains("\"address\": {"));
@@ -115,13 +112,11 @@ public class JsonFormatterTest {
         @Test
         void shouldHandleArraysInJson() {
             String arrayJson = "{\"items\":[\"apple\",\"banana\",\"orange\"],\"count\":3}";
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
 
-            inputArea.fill(arrayJson);
-            page.click("button:has-text('Format')");
+            jsonPage.fillInput(arrayJson);
+            jsonPage.clickFormat();
 
-            Locator outputArea = page.locator("textarea[placeholder*='Formatted JSON']");
-            String formatted = outputArea.inputValue();
+            String formatted = jsonPage.getOutput();
 
             assertTrue(formatted.contains("\"items\": ["));
             assertTrue(formatted.contains("\"apple\""));
@@ -130,12 +125,11 @@ public class JsonFormatterTest {
         @Test
         void shouldShowErrorForInvalidJson() {
             String invalidJson = "{name: \"John\", age: 30}"; // Missing quotes
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
 
-            inputArea.fill(invalidJson);
-            page.click("button:has-text('Format')");
+            jsonPage.fillInput(invalidJson);
+            jsonPage.clickFormat();
 
-            assertTrue(page.locator("text=/Error:/i").isVisible());
+            assertTrue(jsonPage.isErrorVisible());
         }
     }
 
@@ -144,36 +138,32 @@ public class JsonFormatterTest {
         @Test
         void shouldRespectIndentSizeSetting() {
             String inputJson = "{\"name\":\"John\",\"age\":30}";
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
 
-            inputArea.fill(inputJson);
+            jsonPage.fillInput(inputJson);
 
             // Test with 2 spaces (default)
-            page.click("button:has-text('Format')");
-            Locator outputArea = page.locator("textarea[placeholder*='Formatted JSON']");
-            String formatted = outputArea.inputValue();
+            jsonPage.clickFormat();
+            String formatted = jsonPage.getOutput();
             assertTrue(formatted.contains("  \"name\"")); // 2 spaces
 
             // Change to 4 spaces
-            page.selectOption("select", "4");
-            page.click("button:has-text('Format')");
-            formatted = outputArea.inputValue();
+            jsonPage.selectIndentSize("4");
+            jsonPage.clickFormat();
+            formatted = jsonPage.getOutput();
             assertTrue(formatted.contains("    \"name\"")); // 4 spaces
         }
 
         @Test
         void shouldSortKeysWhenOptionIsEnabled() {
             String inputJson = "{\"zebra\":\"z\",\"apple\":\"a\",\"banana\":\"b\"}";
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
 
-            inputArea.fill(inputJson);
+            jsonPage.fillInput(inputJson);
 
             // Enable sort keys
-            page.check("#sortKeys");
-            page.click("button:has-text('Format')");
+            jsonPage.checkSortKeys();
+            jsonPage.clickFormat();
 
-            Locator outputArea = page.locator("textarea[placeholder*='Formatted JSON']");
-            String formatted = outputArea.inputValue();
+            String formatted = jsonPage.getOutput();
 
             // Check that keys are sorted
             int appleIndex = formatted.indexOf("\"apple\"");
@@ -189,10 +179,9 @@ public class JsonFormatterTest {
     class UIControls {
         @Test
         void shouldLoadSampleJson() {
-            page.click("button:has-text('Sample')");
+            jsonPage.clickSample();
 
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
-            String value = inputArea.inputValue();
+            String value = jsonPage.getInput();
 
             assertTrue(value.contains("John Doe"));
             assertTrue(value.contains("email"));
@@ -204,29 +193,27 @@ public class JsonFormatterTest {
             context.grantPermissions(java.util.Arrays.asList("clipboard-read", "clipboard-write"));
 
             String inputJson = "{\"test\":\"value\"}";
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
 
-            inputArea.fill(inputJson);
-            page.click("button:has-text('Format')");
+            jsonPage.fillInput(inputJson);
+            jsonPage.clickFormat();
 
             // Click copy button
-            page.click("button[title='Copy to clipboard']");
+            jsonPage.clickCopy();
 
             // Check for success indicator
-            assertTrue(page.locator(".text-green-400").isVisible());
+            assertTrue(jsonPage.isSuccessIndicatorVisible());
         }
 
         @Test
         void shouldDownloadFormattedJson() {
             String inputJson = "{\"download\":\"test\"}";
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
 
-            inputArea.fill(inputJson);
-            page.click("button:has-text('Format')");
+            jsonPage.fillInput(inputJson);
+            jsonPage.clickFormat();
 
             // Start waiting for download
             Download download = page.waitForDownload(() -> {
-                page.click("button[title='Download JSON']");
+                jsonPage.clickDownload();
             });
 
             assertEquals("formatted.json", download.suggestedFilename());
@@ -237,18 +224,13 @@ public class JsonFormatterTest {
             String fileContent = "{\"uploaded\": true, \"data\": \"test\"}";
 
             // Create file input
-            page.click("button[title='Upload JSON file']");
-            Locator fileInput = page.waitForSelector("input[type='file']");
+            jsonPage.clickUpload();
+            page.waitForSelector("input[type='file']");
 
             // Create a file
-            fileInput.setInputFiles(new FilePayload(
-                "test.json",
-                "application/json",
-                fileContent.getBytes()
-            ));
+            jsonPage.uploadFile("test.json", fileContent);
 
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
-            String value = inputArea.inputValue();
+            String value = jsonPage.getInput();
 
             assertTrue(value.contains("uploaded"));
         }
@@ -259,39 +241,36 @@ public class JsonFormatterTest {
         @Test
         void shouldDisplayStatisticsForFormattedJson() {
             String inputJson = "{\"name\":\"John\",\"age\":30,\"hobbies\":[\"reading\",\"coding\"]}";
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
 
-            inputArea.fill(inputJson);
-            page.click("button:has-text('Format')");
+            jsonPage.fillInput(inputJson);
+            jsonPage.clickFormat();
 
             // Check statistics section
-            assertTrue(page.locator("text=/JSON Statistics/i").isVisible());
-            assertTrue(page.locator("text=/Type:/i").isVisible());
-            assertTrue(page.locator("text=/Keys:/i").isVisible());
-            assertTrue(page.locator("text=/Depth:/i").isVisible());
-            assertTrue(page.locator("text=/Size:/i").isVisible());
+            assertTrue(jsonPage.isStatisticsSectionVisible());
+            assertTrue(jsonPage.isTypeLabelVisible());
+            assertTrue(jsonPage.isKeysLabelVisible());
+            assertTrue(jsonPage.isDepthLabelVisible());
+            assertTrue(jsonPage.isSizeLabelVisible());
         }
 
         @Test
         void shouldShowCorrectTypeForArrays() {
             String arrayJson = "[\"item1\", \"item2\", \"item3\"]";
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
 
-            inputArea.fill(arrayJson);
-            page.click("button:has-text('Format')");
+            jsonPage.fillInput(arrayJson);
+            jsonPage.clickFormat();
 
-            assertTrue(page.locator("text=Array").isVisible());
+            assertTrue(jsonPage.isArrayTypeVisible());
         }
 
         @Test
         void shouldShowCorrectDepthForNestedObjects() {
             String nestedJson = "{\"a\":{\"b\":{\"c\":{\"d\":\"value\"}}}}";
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
 
-            inputArea.fill(nestedJson);
-            page.click("button:has-text('Format')");
+            jsonPage.fillInput(nestedJson);
+            jsonPage.clickFormat();
 
-            String depthText = page.locator("text=/Depth:/i").locator("..").textContent();
+            String depthText = jsonPage.getDepthText();
             assertTrue(depthText.contains("4"));
         }
     }
@@ -301,13 +280,11 @@ public class JsonFormatterTest {
         @Test
         void shouldFormatOnCtrlEnter() {
             String inputJson = "{\"keyboard\":\"test\"}";
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
 
-            inputArea.fill(inputJson);
-            inputArea.press("Control+Enter");
+            jsonPage.fillInput(inputJson);
+            jsonPage.pressFormatShortcut();
 
-            Locator outputArea = page.locator("textarea[placeholder*='Formatted JSON']");
-            String formatted = outputArea.inputValue();
+            String formatted = jsonPage.getOutput();
 
             assertTrue(formatted.contains("{\n"));
         }
@@ -317,30 +294,28 @@ public class JsonFormatterTest {
     class ErrorHandling {
         @Test
         void shouldHandleEmptyInputGracefully() {
-            page.click("button:has-text('Format')");
-            assertTrue(page.locator("text=/Error:/i").isVisible());
+            jsonPage.clickFormat();
+            assertTrue(jsonPage.isErrorVisible());
         }
 
         @Test
         void shouldHandleMalformedJsonWithTrailingComma() {
             String malformedJson = "{\"name\":\"John\",\"age\":30,}";
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
 
-            inputArea.fill(malformedJson);
-            page.click("button:has-text('Format')");
+            jsonPage.fillInput(malformedJson);
+            jsonPage.clickFormat();
 
-            assertTrue(page.locator("text=/Error:/i").isVisible());
+            assertTrue(jsonPage.isErrorVisible());
         }
 
         @Test
         void shouldHandleUnclosedBrackets() {
             String unclosedJson = "{\"name\":\"John\",\"items\":[1,2,3}";
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
 
-            inputArea.fill(unclosedJson);
-            page.click("button:has-text('Format')");
+            jsonPage.fillInput(unclosedJson);
+            jsonPage.clickFormat();
 
-            assertTrue(page.locator("text=/Error:/i").isVisible());
+            assertTrue(jsonPage.isErrorVisible());
         }
     }
 
@@ -349,13 +324,11 @@ public class JsonFormatterTest {
         @Test
         void shouldHandleSpecialCharactersInStrings() {
             String specialJson = "{\"text\":\"Line 1\\nLine 2\\tTabbed\",\"emoji\":\"😀\"}";
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
 
-            inputArea.fill(specialJson);
-            page.click("button:has-text('Format')");
+            jsonPage.fillInput(specialJson);
+            jsonPage.clickFormat();
 
-            Locator outputArea = page.locator("textarea[placeholder*='Formatted JSON']");
-            String formatted = outputArea.inputValue();
+            String formatted = jsonPage.getOutput();
 
             assertTrue(formatted.contains("\\n"));
             assertTrue(formatted.contains("\\t"));
@@ -365,13 +338,11 @@ public class JsonFormatterTest {
         @Test
         void shouldHandleNullAndBooleanValues() {
             String mixedJson = "{\"isActive\":true,\"deleted\":false,\"data\":null}";
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
 
-            inputArea.fill(mixedJson);
-            page.click("button:has-text('Format')");
+            jsonPage.fillInput(mixedJson);
+            jsonPage.clickFormat();
 
-            Locator outputArea = page.locator("textarea[placeholder*='Formatted JSON']");
-            String formatted = outputArea.inputValue();
+            String formatted = jsonPage.getOutput();
 
             assertTrue(formatted.contains("true"));
             assertTrue(formatted.contains("false"));
@@ -391,12 +362,10 @@ public class JsonFormatterTest {
             largeJsonBuilder.append("]}");
             String largeJson = largeJsonBuilder.toString();
 
-            Locator inputArea = page.locator("textarea[placeholder*='Paste your JSON']");
-            inputArea.fill(largeJson);
-            page.click("button:has-text('Format')");
+            jsonPage.fillInput(largeJson);
+            jsonPage.clickFormat();
 
-            Locator outputArea = page.locator("textarea[placeholder*='Formatted JSON']");
-            String formatted = outputArea.inputValue();
+            String formatted = jsonPage.getOutput();
 
             assertNotNull(formatted);
             assertTrue(formatted.length() > largeJson.length());
@@ -409,9 +378,9 @@ public class JsonFormatterTest {
         void shouldBeResponsiveOnMobile() {
             page.setViewportSize(375, 667);
 
-            assertTrue(page.locator("h1").isVisible());
+            assertTrue(jsonPage.isTitleVisible());
             assertTrue(page.locator("textarea").first().isVisible());
-            assertTrue(page.locator("button:has-text('Format')").isVisible());
+            assertTrue(jsonPage.isFormatButtonVisible());
         }
     }
 }
