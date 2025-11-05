@@ -56,7 +56,9 @@
                     <parallel>classes</parallel>
                     <threadCount>4</threadCount>
                     <useUnlimitedThreads>false</useUnlimitedThreads>
-                    <reportFormat>plain</reportFormat>
+                    <trimStackTrace>true</trimStackTrace>
+                    <printSummary>true</printSummary>
+                    <reportFormat>brief</reportFormat>
                     <consoleOutputReporter>
                         <disable>false</disable>
                     </consoleOutputReporter>
