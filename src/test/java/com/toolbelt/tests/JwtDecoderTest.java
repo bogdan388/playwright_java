@@ -377,8 +377,8 @@ public class JwtDecoderTest {
             jwtPage.clickDecode();
 
             // Check that header and payload sections are stacked
-            BoundingBox headerBox = page.locator("text=/Header/i").locator("..").boundingBox();
-            BoundingBox payloadBox = page.locator("text=/Payload/i").locator("..").boundingBox();
+            Locator.BoundingBox headerBox = page.locator("text=/Header/i").locator("..").boundingBox();
+            Locator.BoundingBox payloadBox = page.locator("text=/Payload/i").locator("..").boundingBox();
 
             assertTrue(headerBox.y < payloadBox.y);
         }

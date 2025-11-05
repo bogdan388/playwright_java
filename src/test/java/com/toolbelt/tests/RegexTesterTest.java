@@ -37,7 +37,7 @@ public class RegexTesterTest {
         regexPage = new RegexTesterPage(page);
 
         // Wait for the page to load
-        page.locator("h1:has-text('REGEX TESTER')").waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE));
+        page.locator("h1:has-text('REGEX TESTER')").waitFor();
     }
 
     @AfterEach
@@ -465,8 +465,8 @@ public class RegexTesterTest {
             assertTrue(regexPage.isTestStringTextareaVisible());
 
             // Check layout is stacked (not side-by-side)
-            BoundingBox patternBox = page.locator("input[placeholder*='regex pattern']").boundingBox();
-            BoundingBox textBox = page.locator("textarea[placeholder*='text to test']").boundingBox();
+            Locator.BoundingBox patternBox = page.locator("input[placeholder*='regex pattern']").boundingBox();
+            Locator.BoundingBox textBox = page.locator("textarea[placeholder*='text to test']").boundingBox();
 
             if (patternBox != null && textBox != null) {
                 // Text area should be below pattern input on mobile
