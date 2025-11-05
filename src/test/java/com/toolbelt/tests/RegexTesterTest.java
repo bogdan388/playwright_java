@@ -2,6 +2,7 @@ package com.toolbelt.tests;
 
 import com.microsoft.playwright.*;
 import com.toolbelt.pages.RegexTesterPage;
+import com.toolbelt.utils.BrowserFactory;
 import org.junit.jupiter.api.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -16,7 +17,7 @@ public class RegexTesterTest {
     @BeforeAll
     static void launchBrowser() {
         playwright = Playwright.create();
-        browser = playwright.chromium().launch();
+        browser = BrowserFactory.launchBrowser(playwright);
     }
 
     @AfterAll
