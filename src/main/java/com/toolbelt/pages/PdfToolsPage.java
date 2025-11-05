@@ -255,6 +255,6 @@ public class PdfToolsPage extends BasePage {
     }
 
     public boolean isFileInputAttached() {
-        return page.locator(FILE_INPUT).isAttached();
+        return page.locator(FILE_INPUT).count() > 0;
     }
 }
